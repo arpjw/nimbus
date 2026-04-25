@@ -13,6 +13,7 @@ from sqlmodel import Session
 
 from agent.planner import generate_plan, Plan
 from agent.implementer import execute_plan
+from services.memory import write_repo_memory, read_repo_memory
 from agent.verifier import verify
 from agent.reviewer import self_review, respond_to_comments
 from config import settings
@@ -108,6 +109,9 @@ async def run_task(task: Task, repo: Repo, queue: asyncio.Queue) -> None:
     workspace = settings.workspace_path / task.id
     workspace.mkdir(parents=True, exist_ok=True)
 
+    plan: Plan | None = None
+    verification = None
+
     try:
         await emit(Phase.CLONING, f"Cloning {repo.url}...")
         _update_task(task.id, phase=Phase.CLONING)
@@ -126,7 +130,8 @@ async def run_task(task: Task, repo: Repo, queue: asyncio.Queue) -> None:
         await emit(Phase.PLANNING, "Generating implementation plan (Claude Opus)...")
         _update_task(task.id, phase=Phase.PLANNING)
         file_tree = await _build_file_tree(workspace)
-        plan = await generate_plan(task.description, [repo.id], _rag_service, file_tree)
+        memories = await read_repo_memory(repo.id, task.description)
+        plan = await generate_plan(task.description, [repo.id], _rag_service, file_tree, memories=memories)
         _update_task(task.id, plan=plan.raw)
         await emit(Phase.PLANNING, f"Plan: {plan.summary}", {"changes": len(plan.changes)})
 
@@ -208,9 +213,21 @@ async def run_task(task: Task, repo: Repo, queue: asyncio.Queue) -> None:
 
         asyncio.create_task(respond_to_comments(pr_url, _git_manager))
 
+        try:
+            await write_repo_memory(repo.id, task.description, plan.raw, verification.passed, None)
+        except Exception:
+            pass
+
     except Exception as exc:
-        _update_task(task.id, phase=Phase.FAILED, error=str(exc)[:500])
+        error_str = str(exc)[:500]
+        _update_task(task.id, phase=Phase.FAILED, error=error_str)
         await emit(Phase.FAILED, f"Task failed: {exc}")
+        if plan is not None:
+            try:
+                verification_passed = verification.passed if verification is not None else False
+                await write_repo_memory(repo.id, task.description, plan.raw, verification_passed, error_str)
+            except Exception:
+                pass
         try:
             await _git_manager.cleanup(workspace)
         except Exception:

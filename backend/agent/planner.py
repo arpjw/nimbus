@@ -63,6 +63,7 @@ async def generate_plan(
     repo_ids: list[str],
     rag_service: RAGService,
     repo_file_tree: str,
+    memories: list[dict] | None = None,
 ) -> Plan:
     chunks: list[RetrievedChunk] = await rag_service.query(repo_ids, task_description, top_k=25)
 
@@ -85,9 +86,13 @@ async def generate_plan(
 ```
 
 ## Relevant Code Context (retrieved via semantic search)
-{context}
+{context}"""
 
-Produce the implementation plan JSON now."""
+    if memories:
+        bullets = "\n".join(f"- {m['text']}" for m in memories)
+        user_message += f"\n\n## Repository Memory (past observations)\n{bullets}"
+
+    user_message += "\n\nProduce the implementation plan JSON now."
 
     response = await client.messages.create(
         model=settings.planner_model,
