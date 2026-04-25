@@ -10,6 +10,7 @@ class Phase(str, Enum):
     CLONING = "cloning"
     INDEXING = "indexing"
     PLANNING = "planning"
+    AWAITING_APPROVAL = "awaiting_approval"
     IMPLEMENTING = "implementing"
     VERIFYING = "verifying"
     FIXING = "fixing"

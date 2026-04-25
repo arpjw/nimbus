@@ -2,7 +2,7 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlmodel import Session, select
 
-from agent.orchestrator import run_task
+from agent.orchestrator import run_task, _approval_events, _approval_results
 from api.ws import manager, get_or_create_queue, pump_queue_to_ws
 from database import get_session
 from models.task import Task, Repo, Phase
@@ -47,6 +47,32 @@ def get_task(task_id: str, session: Session = Depends(get_session)):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
+
+@router.post("/{task_id}/approve")
+async def approve_task(task_id: str, session: Session = Depends(get_session)):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    event = _approval_events.get(task_id)
+    if event is None:
+        raise HTTPException(status_code=409, detail="Task is not awaiting approval")
+    _approval_results[task_id] = True
+    event.set()
+    return {"status": "approved"}
+
+
+@router.post("/{task_id}/reject")
+async def reject_task(task_id: str, session: Session = Depends(get_session)):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    event = _approval_events.get(task_id)
+    if event is None:
+        raise HTTPException(status_code=409, detail="Task is not awaiting approval")
+    _approval_results[task_id] = False
+    event.set()
+    return {"status": "rejected"}
 
 
 @router.websocket("/{task_id}/ws")

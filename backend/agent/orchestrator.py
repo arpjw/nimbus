@@ -31,6 +31,8 @@ _vector_store = VectorStore()
 _rag_service = RAGService(_embedding_service, _vector_store)
 _git_manager = GitManager()
 
+_approval_events: dict[str, asyncio.Event] = {}
+_approval_results: dict[str, bool] = {}
 
 Emitter = Callable[[Phase, str, dict | None], None]
 
@@ -146,6 +148,29 @@ async def run_task(task: Task, repo: Repo, queue: asyncio.Queue) -> None:
 
         for change in plan.changes:
             await emit(Phase.PLANNING, f"  [{change.action.upper()}] {change.path}: {change.description[:80]}")
+
+        _approval_events[task.id] = asyncio.Event()
+        _update_task(task.id, phase=Phase.AWAITING_APPROVAL)
+        await emit(
+            Phase.AWAITING_APPROVAL,
+            f"Plan ready: {len(plan.changes)} change(s) require approval",
+            {"changes": [{"path": c.path, "action": c.action, "description": c.description} for c in plan.changes]},
+        )
+        try:
+            await asyncio.wait_for(_approval_events[task.id].wait(), timeout=300)
+            approved = _approval_results.pop(task.id, True)
+        except asyncio.TimeoutError:
+            _approval_results.pop(task.id, None)
+            _update_task(task.id, phase=Phase.FAILED, error="Approval timeout")
+            await emit(Phase.FAILED, "Approval timeout")
+            return
+        finally:
+            _approval_events.pop(task.id, None)
+
+        if not approved:
+            _update_task(task.id, phase=Phase.FAILED, error="Rejected by user")
+            await emit(Phase.FAILED, "Rejected by user")
+            return
 
         for iteration in range(settings.max_implement_iterations):
             _update_task(task.id, phase=Phase.IMPLEMENTING, iteration=iteration + 1)

@@ -44,6 +44,16 @@ class NimbusClient:
             resp.raise_for_status()
             return resp.json()
 
+    async def approve_task(self, task_id: str) -> None:
+        async with httpx.AsyncClient() as http:
+            resp = await http.post(f"{self.base_url}/tasks/{task_id}/approve")
+            resp.raise_for_status()
+
+    async def reject_task(self, task_id: str) -> None:
+        async with httpx.AsyncClient() as http:
+            resp = await http.post(f"{self.base_url}/tasks/{task_id}/reject")
+            resp.raise_for_status()
+
     async def stream_task(self, task_id: str) -> AsyncGenerator[dict, None]:
         uri = f"{self.ws_base}/tasks/{task_id}/ws"
         async with websockets.connect(uri) as ws:

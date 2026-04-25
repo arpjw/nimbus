@@ -15,6 +15,7 @@ _PHASE_COLOR = {
     "cloning": Fore.CYAN,
     "indexing": Fore.CYAN,
     "planning": Fore.YELLOW,
+    "awaiting_approval": Fore.YELLOW,
     "implementing": Fore.BLUE,
     "verifying": Fore.MAGENTA,
     "fixing": Fore.YELLOW,
@@ -26,6 +27,29 @@ _PHASE_COLOR = {
 }
 
 _TERMINAL_PHASES = {"done", "failed"}
+
+
+def _print_plan_table(changes: list[dict]) -> None:
+    if not changes:
+        return
+    headers = ("ACTION", "FILE", "DESCRIPTION")
+    rows = [
+        (c.get("action", "").upper(), c.get("path", ""), c.get("description", ""))
+        for c in changes
+    ]
+    col_widths = [
+        max(len(headers[i]), max((len(r[i]) for r in rows), default=0))
+        for i in range(3)
+    ]
+    col_widths[2] = min(col_widths[2], 60)
+
+    sep = "  ".join("-" * w for w in col_widths)
+    header_line = "  ".join(h.ljust(w) for h, w in zip(headers, col_widths))
+    print(Style.BRIGHT + header_line + Style.RESET_ALL)
+    print(sep)
+    for row in rows:
+        desc = row[2][:60]
+        print("  ".join(cell.ljust(w) for cell, w in zip((row[0], row[1], desc), col_widths)))
 
 
 def _fmt_event(event: dict) -> str:
@@ -81,7 +105,41 @@ async def _run(args: argparse.Namespace) -> int:
         async for event in client.stream_task(task["id"]):
             print(_fmt_event(event))
             phase = event.get("phase", "")
-            if phase == "done":
+            if phase == "awaiting_approval":
+                changes = event.get("data", {}).get("changes", [])
+                print()
+                _print_plan_table(changes)
+                print()
+                if args.yes:
+                    try:
+                        await client.approve_task(task["id"])
+                    except Exception as exc:
+                        print(Fore.RED + f"Failed to approve: {exc}", file=sys.stderr)
+                        return 1
+                else:
+                    n = len(changes)
+                    try:
+                        answer = input(f"Proceed with {n} change{'s' if n != 1 else ''}? [y/N] ").strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        print("\nAborted.")
+                        try:
+                            await client.reject_task(task["id"])
+                        except Exception:
+                            pass
+                        return 1
+                    if answer == "y":
+                        try:
+                            await client.approve_task(task["id"])
+                        except Exception as exc:
+                            print(Fore.RED + f"Failed to approve: {exc}", file=sys.stderr)
+                            return 1
+                    else:
+                        try:
+                            await client.reject_task(task["id"])
+                        except Exception:
+                            pass
+                        return 1
+            elif phase == "done":
                 pr_url = event.get("data", {}).get("pr_url")
                 print()
                 if pr_url:
