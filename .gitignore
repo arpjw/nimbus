@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/nimbus.db
+backend/.chroma/
+
+# Env files
+.env
+backend/.env
+frontend/.env.local
+
+# OS
+.DS_Store
