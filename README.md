@@ -276,4 +276,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-Built by [Arya Somu](https://arpjw.github.io) · [get-nimbus.com](https://get-nimbus.com)
+Built by [Arya Somu](https://aryasomu.com) · [get-nimbus.com](https://get-nimbus.com)
