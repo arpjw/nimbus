@@ -1,12 +1,14 @@
 import asyncio
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from agent.orchestrator import run_task, _approval_events, _approval_results
+from agent.orchestrator import run_task, _approval_events, _approval_results, _rag_service
 from agent.reviewer_external import review_pr as _review_pr
+from agent.test_generator import generate_tests
 from api.ws import manager, get_or_create_queue, pump_queue_to_ws
 from config import settings
 from database import get_session
@@ -17,6 +19,7 @@ from services.auth import ApiKey, require_api_key, check_rate_limit
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 review_router = APIRouter(tags=["review"])
+test_router = APIRouter(tags=["tests"])
 
 
 class ReviewRequest(BaseModel):
@@ -148,3 +151,72 @@ async def task_ws(task_id: str, ws: WebSocket):
             await ws.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(task_id, ws)
+
+
+class GenerateTestsRequest(BaseModel):
+    repo_id: str
+    file_path: str
+
+
+def _derive_test_file_path(file_path: str) -> str:
+    p = Path(file_path)
+    ext = p.suffix.lower()
+    stem = p.stem
+    parent = p.parent
+
+    if ext == ".py":
+        return str(Path("tests") / f"test_{stem}.py")
+
+    if ext in {".ts", ".tsx", ".js", ".jsx"}:
+        return str(parent / f"{stem}.test{ext}")
+
+    if ext == ".go":
+        return str(parent / f"{stem}_test.go")
+
+    if ext == ".rs":
+        return str(parent / f"{stem}_test.rs")
+
+    return str(parent / f"{stem}.test{ext}")
+
+
+def _find_workspace_file(repo_id: str, file_path: str, session: Session) -> tuple[Path, str]:
+    tasks = session.exec(
+        select(Task)
+        .where(Task.repo_id == repo_id)
+        .order_by(Task.created_at.desc())
+    ).all()
+
+    for task in tasks:
+        workspace = settings.workspace_path / task.id
+        candidate = workspace / file_path
+        if candidate.exists():
+            return workspace, candidate.read_text()
+
+    raise HTTPException(status_code=404, detail=f"File not found in any workspace for repo {repo_id}")
+
+
+@test_router.post("/generate-tests")
+async def generate_tests_endpoint(
+    body: GenerateTestsRequest,
+    session: Session = Depends(get_session),
+):
+    repo = session.get(Repo, body.repo_id)
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repo not found")
+
+    _, content = _find_workspace_file(body.repo_id, body.file_path, session)
+
+    test_content = await generate_tests(
+        file_path=body.file_path,
+        content=content,
+        repo_id=body.repo_id,
+        rag_service=_rag_service,
+    )
+
+    test_file_path = _derive_test_file_path(body.file_path)
+
+    return {
+        "file_path": body.file_path,
+        "test_file_path": test_file_path,
+        "content": test_content,
+    }

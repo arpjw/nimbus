@@ -4,6 +4,7 @@ import os
 import re
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 from colorama import Fore, Style, init
@@ -91,6 +92,72 @@ _VERDICT_COLOR = {
     "REQUEST_CHANGES": Fore.RED,
     "NEEDS_DISCUSSION": Fore.YELLOW,
 }
+
+
+async def _test(args: argparse.Namespace) -> int:
+    api_key = args.api_key or os.environ.get("NIMBUS_API_KEY")
+    client = NimbusClient(args.backend, api_key=api_key)
+
+    repo_id = args.repo_id
+    if not repo_id:
+        try:
+            remote_url, repo_slug = get_git_remote()
+            repo_name = repo_slug.split("/")[-1] if "/" in repo_slug else repo_slug
+            lookup_client = NimbusClient(args.backend, api_key=api_key)
+            async with __import__("httpx").AsyncClient() as http:
+                resp = await http.get(f"{args.backend}/workspaces/")
+                resp.raise_for_status()
+                workspaces = resp.json()
+            workspace_id = None
+            for ws in workspaces:
+                if ws["name"] == repo_name:
+                    workspace_id = ws["id"]
+                    break
+            if workspace_id:
+                async with __import__("httpx").AsyncClient() as http:
+                    resp = await http.get(f"{args.backend}/workspaces/{workspace_id}/repos")
+                    resp.raise_for_status()
+                    repos = resp.json()
+                for repo in repos:
+                    if repo["url"] == remote_url:
+                        repo_id = repo["id"]
+                        break
+        except Exception as exc:
+            print(Fore.RED + f"Could not auto-detect repo-id: {exc}", file=sys.stderr)
+            print(Fore.RED + "Pass --repo-id explicitly.", file=sys.stderr)
+            return 1
+
+    if not repo_id:
+        print(Fore.RED + "Could not resolve repo-id. Pass --repo-id explicitly.", file=sys.stderr)
+        return 1
+
+    print(f"Generating tests for {args.file_path} ...")
+    try:
+        result = await client.generate_tests_pr(repo_id, args.file_path)
+    except Exception as exc:
+        print(Fore.RED + f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    content: str = result["content"]
+    test_file_path: str = result["test_file_path"]
+
+    print()
+    for line in content.splitlines():
+        if re.match(r"^(def test_|async def test_|it\(|test\(|func Test)", line):
+            print(Fore.GREEN + Style.BRIGHT + line + Style.RESET_ALL)
+        else:
+            print(line)
+    print()
+
+    if args.write:
+        out_path = Path.cwd() / test_file_path
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(content)
+        print(Fore.GREEN + f"Written to {out_path}")
+    else:
+        print(Style.DIM + f"(use --write to save to {test_file_path})" + Style.RESET_ALL)
+
+    return 0
 
 
 async def _review(args: argparse.Namespace) -> int:
@@ -473,11 +540,39 @@ def main():
         help="Nimbus API key (defaults to NIMBUS_API_KEY env var)",
     )
 
+    test_p = sub.add_parser("test", help="Generate a test suite for a source file")
+    test_p.add_argument("file_path", metavar="FILE_PATH", help="Relative path to the source file, e.g. services/auth.py")
+    test_p.add_argument(
+        "--repo-id",
+        default=None,
+        metavar="ID",
+        help="Repo ID (auto-detected from git remote if omitted)",
+    )
+    test_p.add_argument(
+        "--backend",
+        default="http://localhost:8000",
+        metavar="URL",
+        help="Nimbus backend URL (default: http://localhost:8000)",
+    )
+    test_p.add_argument(
+        "--write",
+        action="store_true",
+        help="Write the generated tests to disk",
+    )
+    test_p.add_argument(
+        "--api-key",
+        default=None,
+        metavar="KEY",
+        help="Nimbus API key (defaults to NIMBUS_API_KEY env var)",
+    )
+
     args = parser.parse_args()
     if args.command == "review":
         sys.exit(asyncio.run(_review(args)))
     if args.command == "issue":
         sys.exit(asyncio.run(_issue(args)))
+    if args.command == "test":
+        sys.exit(asyncio.run(_test(args)))
     sys.exit(asyncio.run(_run(args)))
 
 

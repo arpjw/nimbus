@@ -89,3 +89,12 @@ class NimbusClient:
         async with websockets.connect(uri, extra_headers=extra_headers) as ws:
             async for raw in ws:
                 yield json.loads(raw)
+
+    async def generate_tests_pr(self, repo_id: str, file_path: str) -> dict:
+        async with httpx.AsyncClient(headers=self._headers, timeout=120.0) as http:
+            resp = await http.post(
+                f"{self.base_url}/generate-tests",
+                json={"repo_id": repo_id, "file_path": file_path},
+            )
+            resp.raise_for_status()
+            return resp.json()
