@@ -30,6 +30,9 @@ class Settings(BaseSettings):
 
     github_webhook_secret: str = ""
 
+    parallel_threshold: int = 6
+    max_parallel_workers: int = 3
+
     require_api_key: bool = False
     free_tier_monthly_limit: int = 10
 

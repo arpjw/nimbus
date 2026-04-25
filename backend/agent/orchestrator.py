@@ -13,6 +13,7 @@ from sqlmodel import Session
 
 from agent.planner import generate_plan, Plan
 from agent.implementer import execute_plan
+from agent.parallel_implementer import execute_plan_parallel
 from services.memory import write_repo_memory, read_repo_memory
 from agent.verifier import verify
 from agent.reviewer import self_review, respond_to_comments
@@ -31,6 +32,8 @@ _embedding_service = EmbeddingService()
 _vector_store = VectorStore()
 _rag_service = RAGService(_embedding_service, _vector_store)
 _git_manager = GitManager()
+
+PARALLEL_THRESHOLD: int = 6
 
 _approval_events: dict[str, asyncio.Event] = {}
 _approval_results: dict[str, bool] = {}
@@ -172,8 +175,13 @@ async def run_task(
             _update_task(task.id, phase=Phase.IMPLEMENTING, iteration=iteration + 1)
             await emit(Phase.IMPLEMENTING, f"Implementing (iteration {iteration + 1}/{settings.max_implement_iterations})...")
 
-            async for log_line in execute_plan(plan, workspace):
-                await emit(Phase.IMPLEMENTING, log_line)
+            if len(plan.changes) >= settings.parallel_threshold:
+                await emit(Phase.IMPLEMENTING, f"[parallel] {len(plan.changes)} changes across {settings.max_parallel_workers} workers")
+                async for log_line in execute_plan_parallel(plan, workspace, max_workers=settings.max_parallel_workers):
+                    await emit(Phase.IMPLEMENTING, log_line)
+            else:
+                async for log_line in execute_plan(plan, workspace):
+                    await emit(Phase.IMPLEMENTING, log_line)
 
             await _git_manager.commit_all(git_repo, f"nimbus: implement task (iteration {iteration + 1})")
 
