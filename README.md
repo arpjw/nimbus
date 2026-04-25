@@ -1,16 +1,10 @@
-<div align="center">
-
 # Nimbus
 
 **Autonomous software engineering, stratified.**
 
 Nimbus is a multi-repository SWE agent that plans, implements, and reviews code against real codebases — entirely on its own. Powered by Claude and Voyage AI.
 
-[![MIT License](https://img.shields.io/badge/license-MIT-black?style=flat-square)](LICENSE)
-[![Python 3.12](https://img.shields.io/badge/python-3.12-black?style=flat-square)](https://python.org)
-[![Next.js 14](https://img.shields.io/badge/next.js-14-black?style=flat-square)](https://nextjs.org)
-
-</div>
+[get-nimbus.com](https://get-nimbus.com) · MIT License
 
 ---
 
@@ -70,11 +64,11 @@ The retrieval layer combines two fundamentally different search methods and fuse
 - **BM25 (Okapi)** — keyword-based retrieval that captures exact symbol names, function identifiers, and string literals that semantic search misses.
 - **Reciprocal Rank Fusion** — merges both ranked lists into a single result set robust to the weaknesses of either method alone: `score(d) = Σ 1 / (k + rank(d))`.
 
-For multi-repo queries, both stages run per repository and results are merged before fusion. The planner always retrieves from the right codebase.
+For multi-repo queries, both stages run per repository and results are merged before fusion.
 
 ### Claude Opus Planning
 
-Before a single line is written, Claude Opus reasons over the retrieved context and produces a structured JSON plan — a list of specific file-level changes with explicit rationale for each. The implementer receives this plan and executes against it, rather than reasoning from the task description alone.
+Before a single line is written, Claude Opus reasons over the retrieved context and produces a structured JSON plan — a list of specific file-level changes with explicit rationale for each. The implementer receives this plan and executes against it, rather than reasoning from scratch.
 
 ### Agentic Implementation Loop
 
@@ -88,8 +82,6 @@ Claude Sonnet drives a tool-use loop with access to:
 | `search_files` | Regex search across the codebase |
 | `run_claude_code` | Delegate subtasks to the Claude Code CLI |
 | `finish_implementation` | Signal completion |
-
-The loop continues until the implementer calls `finish_implementation` or the iteration limit is reached.
 
 ### Claude Code CLI Integration
 
@@ -117,11 +109,11 @@ After opening a PR, Nimbus:
 1. Retrieves its own diff via the GitHub API
 2. Sends it to Claude Sonnet with a critical self-review prompt
 3. Posts the structured critique as a PR comment (verdict: APPROVE / REQUEST_CHANGES / NEEDS_DISCUSSION)
-4. Spawns a background task that polls for human reviewer comments and responds to each with technical precision
+4. Spawns a background task that polls for human reviewer comments and responds to each
 
 ### Multi-Repository Workspaces
 
-Repositories are organized into workspaces. A workspace can contain multiple repos — all indexed into separate ChromaDB collections under the same workspace ID. Planning queries can retrieve context across all repos in a workspace simultaneously, enabling tasks that span service boundaries.
+Repositories are organized into workspaces. A workspace can contain multiple repos — all indexed into separate ChromaDB collections under the same workspace ID. Planning queries retrieve context across all repos in a workspace simultaneously, enabling tasks that span service boundaries.
 
 ### Real-Time WebSocket Streaming
 
@@ -148,16 +140,13 @@ backend/
 │   ├── file_tools.py      # read / write / list / search (path-traversal safe)
 │   ├── git_tools.py       # GitPython clone + PyGitHub PR creation
 │   └── shell_tools.py     # Sandboxed command runner (allowlist-gated)
-├── models/
-│   ├── task.py            # Task, Repo, Workspace SQLModel definitions
-│   └── schemas.py         # Pydantic request/response schemas
 └── api/
     ├── ws.py              # WebSocket connection manager + queue pump
     └── routes/
         ├── tasks.py       # Task REST + WebSocket endpoints
         └── repos.py       # Workspace + repo CRUD
 
-frontend/
+frontend/                  # Live at get-nimbus.com
 ├── app/
 │   ├── page.tsx           # Editorial landing page
 │   ├── dashboard/         # Workspace and task management
@@ -202,7 +191,7 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000' > .env.local
 npm install && npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) or visit [get-nimbus.com](https://get-nimbus.com).
 
 ### Docker
 
@@ -238,29 +227,6 @@ curl -s -X POST http://localhost:8000/tasks/ \
 
 Then open `http://localhost:3000/task/{task_id}` to watch the live log stream.
 
-### Python
-
-```python
-from agent.orchestrator import run_task
-from models.task import Task, Repo
-import asyncio
-
-task = Task(
-    workspace_id="...",
-    repo_id="...",
-    description="Migrate authentication middleware to JWT with refresh token support"
-)
-repo = Repo(
-    id="...",
-    url="https://github.com/acme/api",
-    name="api",
-    workspace_id="..."
-)
-
-queue = asyncio.Queue()
-asyncio.run(run_task(task, repo, queue))
-```
-
 ### Example tasks
 
 ```
@@ -276,8 +242,6 @@ asyncio.run(run_task(task, repo, queue))
 
 ## Configuration
 
-All settings are defined in `backend/config.py` and overridable via environment variables.
-
 | Variable | Default | Description |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Required. Claude API key |
@@ -288,14 +252,9 @@ All settings are defined in `backend/config.py` and overridable via environment 
 | `REVIEWER_MODEL` | `claude-sonnet-4-6` | Model used for PR self-review |
 | `EMBEDDING_MODEL` | `voyage-code-2` | Voyage embedding model |
 | `MAX_IMPLEMENT_ITERATIONS` | `5` | Max implement → verify → replan cycles |
-| `MAX_FIX_ITERATIONS` | `3` | Max targeted fix attempts per error |
 | `RAG_TOP_K` | `20` | Chunks retrieved per query |
-| `RAG_BM25_WEIGHT` | `0.3` | BM25 weight in RRF fusion |
-| `RAG_VECTOR_WEIGHT` | `0.7` | Vector weight in RRF fusion |
 | `CHUNK_MAX_LINES` | `80` | Lines per chunk at index time |
-| `CHUNK_OVERLAP_LINES` | `10` | Overlap between consecutive chunks |
 | `CHROMA_PERSIST_DIR` | `./.chroma` | ChromaDB persistence path |
-| `WORKSPACE_BASE_DIR` | `/tmp/nimbus-workspaces` | Cloned repo working directory |
 
 ---
 
@@ -303,22 +262,11 @@ All settings are defined in `backend/config.py` and overridable via environment 
 
 Retrieval is the foundation of the planning step. The quality of context retrieved directly determines the quality of the implementation plan.
 
-### Chunking
+**Chunking** — Source files are split into overlapping chunks of `CHUNK_MAX_LINES` lines with `CHUNK_OVERLAP_LINES` overlap. Each chunk is stored with metadata: `repo_id`, `file_path`, `language`, `start_line`, `end_line`, `chunk_id`.
 
-Source files are split into overlapping chunks of `CHUNK_MAX_LINES` lines with `CHUNK_OVERLAP_LINES` overlap. Each chunk is stored with metadata: `repo_id`, `file_path`, `language`, `start_line`, `end_line`, `chunk_id`.
+**Embedding** — All chunks are embedded with Voyage AI's `voyage-code-2` model — purpose-built for source code, significantly outperforming general-purpose text embedding models on code retrieval benchmarks.
 
-### Embedding
-
-All chunks are embedded with Voyage AI's `voyage-code-2` model — purpose-built for source code, significantly outperforming general-purpose text embedding models on code retrieval benchmarks. Embeddings are persisted in ChromaDB with an HNSW index using cosine similarity.
-
-### Hybrid Retrieval
-
-At query time:
-1. The task description is embedded and queried against ChromaDB for the top-K nearest chunks by cosine similarity.
-2. The same description is tokenized and scored against the BM25 corpus for the top-K chunks by term frequency.
-3. Both ranked lists are merged via Reciprocal Rank Fusion into a single ranked result set.
-
-For multi-repo workspaces, steps 1–3 run per repo and results are pooled before final ranking.
+**Hybrid Retrieval** — At query time, the task description is embedded and queried against ChromaDB for top-K nearest chunks by cosine similarity. The same description is scored against the BM25 corpus by term frequency. Both ranked lists are merged via Reciprocal Rank Fusion. For multi-repo workspaces, both stages run per repo and results are pooled before final ranking.
 
 ---
 
@@ -328,6 +276,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-<div align="center">
-<sub>Built by <a href="https://arpjw.github.io">Arya Somu</a></sub>
-</div>
+Built by [Arya Somu](https://arpjw.github.io) · [get-nimbus.com](https://get-nimbus.com)
