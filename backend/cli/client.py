@@ -64,6 +64,16 @@ class NimbusClient:
             resp = await http.post(f"{self.base_url}/tasks/{task_id}/reject")
             resp.raise_for_status()
 
+    async def approve_diff(self, task_id: str) -> None:
+        async with httpx.AsyncClient(headers=self._headers) as http:
+            resp = await http.post(f"{self.base_url}/tasks/{task_id}/approve-diff")
+            resp.raise_for_status()
+
+    async def reject_diff(self, task_id: str) -> None:
+        async with httpx.AsyncClient(headers=self._headers) as http:
+            resp = await http.post(f"{self.base_url}/tasks/{task_id}/reject-diff")
+            resp.raise_for_status()
+
     async def review_pr(self, pr_url: str, post: bool = False) -> dict:
         async with httpx.AsyncClient(timeout=120.0) as http:
             resp = await http.post(

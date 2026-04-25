@@ -11,6 +11,7 @@ class Phase(str, Enum):
     INDEXING = "indexing"
     PLANNING = "planning"
     AWAITING_APPROVAL = "awaiting_approval"
+    AWAITING_DIFF_APPROVAL = "awaiting_diff_approval"
     IMPLEMENTING = "implementing"
     VERIFYING = "verifying"
     FIXING = "fixing"

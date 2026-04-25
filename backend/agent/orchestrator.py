@@ -201,7 +201,38 @@ async def run_task(
         await emit(Phase.REVIEWING, "Pushing branch and creating PR...")
         await _git_manager.push(git_repo, branch_name)
 
-        review_body = "Automated implementation by **Nimbus** — awaiting self-review..."
+        diff_raw = git_repo.git.diff("origin/HEAD...HEAD")
+        lines_changed = sum(
+            1 for line in diff_raw.splitlines()
+            if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
+        )
+        diff_string = diff_raw if len(diff_raw) <= 8000 else diff_raw[:8000] + "\n... (truncated)"
+
+        diff_key = task.id + ":diff"
+        _approval_events[diff_key] = asyncio.Event()
+        _update_task(task.id, phase=Phase.AWAITING_DIFF_APPROVAL)
+        await emit(
+            Phase.AWAITING_DIFF_APPROVAL,
+            f"Diff ready for review -- {lines_changed} lines changed",
+            {"diff": diff_string, "lines_changed": lines_changed},
+        )
+        try:
+            await asyncio.wait_for(_approval_events[diff_key].wait(), timeout=300)
+            diff_approved = _approval_results.pop(diff_key, True)
+        except asyncio.TimeoutError:
+            _approval_results.pop(diff_key, None)
+            _update_task(task.id, phase=Phase.FAILED, error="Diff approval timeout")
+            await emit(Phase.FAILED, "Diff approval timeout")
+            return
+        finally:
+            _approval_events.pop(diff_key, None)
+
+        if not diff_approved:
+            _update_task(task.id, phase=Phase.FAILED, error="Diff rejected by user")
+            await emit(Phase.FAILED, "Diff rejected by user")
+            return
+
+        review_body = "Automated implementation by **Nimbus** -- awaiting self-review..."
         pr_url = await _git_manager.create_pr(repo.url, branch_name, task.description, review_body)
         _update_task(task.id, pr_url=pr_url)
         await emit(Phase.REVIEWING, f"PR created: {pr_url}", {"pr_url": pr_url})

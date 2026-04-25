@@ -112,6 +112,34 @@ async def reject_task(task_id: str, session: Session = Depends(get_session)):
     return {"status": "rejected"}
 
 
+@router.post("/{task_id}/approve-diff")
+async def approve_diff(task_id: str, session: Session = Depends(get_session)):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    diff_key = task_id + ":diff"
+    event = _approval_events.get(diff_key)
+    if event is None:
+        raise HTTPException(status_code=409, detail="Task is not awaiting diff approval")
+    _approval_results[diff_key] = True
+    event.set()
+    return {"status": "approved"}
+
+
+@router.post("/{task_id}/reject-diff")
+async def reject_diff(task_id: str, session: Session = Depends(get_session)):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    diff_key = task_id + ":diff"
+    event = _approval_events.get(diff_key)
+    if event is None:
+        raise HTTPException(status_code=409, detail="Task is not awaiting diff approval")
+    _approval_results[diff_key] = False
+    event.set()
+    return {"status": "rejected"}
+
+
 @router.websocket("/{task_id}/ws")
 async def task_ws(task_id: str, ws: WebSocket):
     await manager.connect(task_id, ws)

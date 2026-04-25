@@ -19,6 +19,7 @@ _PHASE_COLOR = {
     "indexing": Fore.CYAN,
     "planning": Fore.YELLOW,
     "awaiting_approval": Fore.YELLOW,
+    "awaiting_diff_approval": Fore.YELLOW,
     "implementing": Fore.BLUE,
     "verifying": Fore.MAGENTA,
     "fixing": Fore.YELLOW,
@@ -53,6 +54,20 @@ def _print_plan_table(changes: list[dict]) -> None:
     for row in rows:
         desc = row[2][:60]
         print("  ".join(cell.ljust(w) for cell, w in zip((row[0], row[1], desc), col_widths)))
+
+
+def _print_diff(diff: str) -> None:
+    print(Style.DIM + "-" * 60 + Style.RESET_ALL)
+    for line in diff.splitlines():
+        if line.startswith("@@"):
+            print(Fore.CYAN + line + Style.RESET_ALL)
+        elif line.startswith("+") and not line.startswith("+++"):
+            print(Fore.GREEN + line + Style.RESET_ALL)
+        elif line.startswith("-") and not line.startswith("---"):
+            print(Fore.RED + line + Style.RESET_ALL)
+        else:
+            print(line)
+    print(Style.DIM + "-" * 60 + Style.RESET_ALL)
 
 
 def _fmt_event(event: dict) -> str:
@@ -209,6 +224,39 @@ async def _issue(args: argparse.Namespace) -> int:
                         except Exception:
                             pass
                         return 1
+            elif phase == "awaiting_diff_approval":
+                diff = event.get("data", {}).get("diff", "")
+                print()
+                _print_diff(diff)
+                print()
+                if args.yes:
+                    try:
+                        await client.approve_diff(task["id"])
+                    except Exception as exc:
+                        print(Fore.RED + f"Failed to approve diff: {exc}", file=sys.stderr)
+                        return 1
+                else:
+                    try:
+                        answer = input("Open PR with these changes? [y/N] ").strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        print("\nAborted.")
+                        try:
+                            await client.reject_diff(task["id"])
+                        except Exception:
+                            pass
+                        return 1
+                    if answer == "y":
+                        try:
+                            await client.approve_diff(task["id"])
+                        except Exception as exc:
+                            print(Fore.RED + f"Failed to approve diff: {exc}", file=sys.stderr)
+                            return 1
+                    else:
+                        try:
+                            await client.reject_diff(task["id"])
+                        except Exception:
+                            pass
+                        return 1
             elif phase == "done":
                 pr_url = event.get("data", {}).get("pr_url")
                 print()
@@ -297,6 +345,39 @@ async def _run(args: argparse.Namespace) -> int:
                     else:
                         try:
                             await client.reject_task(task["id"])
+                        except Exception:
+                            pass
+                        return 1
+            elif phase == "awaiting_diff_approval":
+                diff = event.get("data", {}).get("diff", "")
+                print()
+                _print_diff(diff)
+                print()
+                if args.yes:
+                    try:
+                        await client.approve_diff(task["id"])
+                    except Exception as exc:
+                        print(Fore.RED + f"Failed to approve diff: {exc}", file=sys.stderr)
+                        return 1
+                else:
+                    try:
+                        answer = input("Open PR with these changes? [y/N] ").strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        print("\nAborted.")
+                        try:
+                            await client.reject_diff(task["id"])
+                        except Exception:
+                            pass
+                        return 1
+                    if answer == "y":
+                        try:
+                            await client.approve_diff(task["id"])
+                        except Exception as exc:
+                            print(Fore.RED + f"Failed to approve diff: {exc}", file=sys.stderr)
+                            return 1
+                    else:
+                        try:
+                            await client.reject_diff(task["id"])
                         except Exception:
                             pass
                         return 1
