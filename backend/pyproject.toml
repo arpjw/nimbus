@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "nimbus"
+version = "0.1.0"
+description = "Nimbus autonomous SWE agent CLI"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.0",
+    "websockets>=13.0",
+    "colorama>=0.4.6",
+]
+
+[project.scripts]
+nimbus = "cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cli*"]
