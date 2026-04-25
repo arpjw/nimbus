@@ -1,0 +1,1 @@
+self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/Users/aryasomu/Developer/nimbus/frontend/src/app/layout\":[\"static/media/e18f83c737786aa7-s.p.woff2\",\"static/media/7b89a4fd5e90ede0-s.p.woff2\",\"static/media/e4af272ccee01ff0-s.p.woff2\",\"static/media/bb3ef058b751a6ad-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"

@@ -1,38 +1,38 @@
 import type { Metadata } from "next";
-import { Syne, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { Inter, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const syne = Syne({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-syne",
-  weight: ["400", "600", "700", "800"],
+  variable: "--font-inter",
+  display: "swap",
+  weight: ["300", "400", "500"],
 });
 
-const dmSans = DM_Sans({
+const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
-  variable: "--font-dm-sans",
-  weight: ["300", "400", "500"],
+  variable: "--font-cormorant",
+  display: "swap",
+  weight: ["300", "400", "500", "600"],
+  style: ["normal", "italic"],
 });
 
 const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains",
+  display: "swap",
   weight: ["300", "400", "500"],
 });
 
 export const metadata: Metadata = {
   title: "Nimbus — Autonomous SWE Agent",
-  description: "Multi-repo, Claude-powered software engineering agent with hybrid RAG and PR review loops.",
-  openGraph: {
-    title: "Nimbus",
-    description: "Autonomous software engineering, stratified.",
-  },
+  description: "Multi-repo, Claude-powered software engineering agent with hybrid RAG and self-reviewing PR loops.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${syne.variable} ${dmSans.variable} ${jetbrains.variable}`}>
-      <body className="bg-bg text-text font-body antialiased">{children}</body>
+    <html lang="en" className={`${inter.variable} ${cormorant.variable} ${jetbrains.variable}`}>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   );
 }

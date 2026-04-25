@@ -4,129 +4,213 @@ import { HeroTerminal } from "@/components/landing/Hero";
 import { Features } from "@/components/landing/Features";
 import { Workflow } from "@/components/landing/Workflow";
 
+const TICKER_ITEMS = [
+  "voyage-code-2 embeddings",
+  "BM25 keyword retrieval",
+  "Reciprocal Rank Fusion",
+  "Claude Opus planning",
+  "Claude Sonnet implementation",
+  "Agentic tool-use loop",
+  "Multi-repository workspaces",
+  "Self-reviewing PR loop",
+  "Iterative verification",
+  "ChromaDB vector store",
+];
+
 export default function Landing() {
+  const tickers = [...TICKER_ITEMS, ...TICKER_ITEMS];
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-bg">
 
       {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 backdrop-blur-md bg-bg/80">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-sm bg-accent flex items-center justify-center">
-              <span className="font-sans font-black text-bg text-xs">N</span>
-            </div>
-            <span className="font-sans font-bold text-sm tracking-tight">Nimbus</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <a href="#features" className="font-body text-sm text-muted hover:text-text transition-colors">Features</a>
-            <a href="#workflow" className="font-body text-sm text-muted hover:text-text transition-colors">Workflow</a>
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-bg/95 backdrop-blur-sm">
+        <div className="max-w-5xl mx-auto px-6 h-12 flex items-center justify-between">
+          <span className="font-display italic text-xl font-medium tracking-tight">Nimbus</span>
+          <div className="flex items-center gap-7">
+            <a href="#features" className="text-sm text-muted hover:text-text transition-colors">Features</a>
+            <a href="#workflow" className="text-sm text-muted hover:text-text transition-colors">Workflow</a>
             <a
               href="https://github.com/arpjw/nimbus"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 font-body text-sm text-muted hover:text-text transition-colors"
+              className="flex items-center gap-1.5 text-sm text-muted hover:text-text transition-colors"
             >
-              <Github size={14} />
-              GitHub
+              <Github size={13} /> GitHub
             </a>
             <Link
               href="/dashboard"
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-accent text-bg text-sm font-semibold font-sans hover:bg-accent/90 transition-colors"
+              className="flex items-center gap-1.5 text-sm font-medium text-bg bg-text hover:bg-brown px-4 py-1.5 rounded-sm transition-colors"
             >
-              Launch <ArrowRight size={14} />
+              Dashboard <ArrowRight size={12} />
             </Link>
           </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="pt-32 pb-20 px-6 grid-bg mesh-gradient relative overflow-hidden">
-        <div className="max-w-5xl mx-auto">
+      <section className="pt-32 pb-0 px-6 relative overflow-hidden">
+
+        {/* Large decorative background letter */}
+        <div
+          aria-hidden="true"
+          className="absolute right-0 top-0 select-none pointer-events-none"
+          style={{ lineHeight: 1 }}
+        >
+          <span
+            className="font-display font-medium"
+            style={{ fontSize: "580px", color: "rgba(180,168,152,0.10)", letterSpacing: "-0.04em" }}
+          >
+            N
+          </span>
+        </div>
+
+        <div className="max-w-5xl mx-auto relative">
+
+          {/* Label */}
+          <p className="font-mono text-[11px] text-faint uppercase tracking-widest mb-8">
+            Nimbus &mdash; 2026
+          </p>
+
           <div className="grid grid-cols-2 gap-16 items-start">
 
-            {/* Left copy */}
-            <div className="animate-in pt-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-accent/20 bg-accent/5 mb-8">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse-accent" />
-                <span className="font-mono text-xs text-accent">Powered by Claude + Voyage AI</span>
-              </div>
-
-              <h1 className="font-sans font-black text-6xl leading-[1.05] tracking-tight mb-6">
-                Autonomous
-                <br />
-                software
-                <br />
-                <span className="text-accent text-glow">engineering.</span>
+            {/* Left */}
+            <div className="space-y-10">
+              <h1 className="font-display font-medium leading-[1.0] tracking-tight" style={{ fontSize: "82px" }}>
+                Autonomous<br />
+                software<br />
+                <em className="italic font-medium" style={{ color: "#8E2D2D" }}>engineering.</em>
               </h1>
 
-              <p className="font-body text-muted text-lg leading-relaxed mb-10 max-w-sm">
-                Multi-repo SWE agent with hybrid RAG, Claude Code CLI integration,
-                and a self-reviewing PR loop. Ships code. Responds to reviews.
+              <p className="text-muted text-base leading-relaxed max-w-[340px]">
+                Nimbus plans, implements, and reviews code against real repositories &mdash;
+                entirely on its own. Powered by Claude and Voyage AI.
               </p>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <Link
                   href="/dashboard"
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-accent text-bg font-sans font-bold text-sm hover:bg-accent/90 transition-all glow-accent"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-text text-bg text-sm font-medium hover:bg-brown rounded-sm transition-colors"
                 >
-                  Open Dashboard <ArrowRight size={16} />
+                  Open Dashboard
                 </Link>
                 <a
                   href="https://github.com/arpjw/nimbus"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl border border-border text-text font-sans font-medium text-sm hover:border-border-bright transition-colors"
+                  className="flex items-center gap-2 px-5 py-2.5 border border-border text-sm text-text hover:border-border-dark rounded-sm transition-colors"
                 >
-                  <Github size={16} /> View Source
+                  <Github size={13} /> View source
                 </a>
-              </div>
-
-              <div className="mt-10 flex items-center gap-6 font-mono text-xs text-muted">
-                <span><span className="text-accent">voyage-code-2</span> embeddings</span>
-                <span><span className="text-info">BM25 + RRF</span> hybrid search</span>
-                <span><span className="text-warning">Multi-repo</span> workspaces</span>
               </div>
             </div>
 
-            {/* Right terminal */}
-            <div className="animate-in" style={{ animationDelay: "200ms" }}>
+            {/* Right — terminal */}
+            <div>
               <HeroTerminal />
             </div>
           </div>
-        </div>
 
-        {/* Decorative line */}
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+          {/* Stats bar */}
+          <div className="grid grid-cols-3 gap-0 mt-16 border-t border-border">
+            {[
+              { label: "Embedding model", value: "voyage-code-2", sub: "Purpose-built for code" },
+              { label: "Retrieval method", value: "BM25 + RRF", sub: "Keyword + semantic fusion" },
+              { label: "Repository scope", value: "Multi-repo", sub: "Unified workspace indexing" },
+            ].map((s, i) => (
+              <div key={s.label} className={`py-8 ${i > 0 ? "pl-8 border-l border-border" : ""} ${i < 2 ? "pr-8" : ""}`}>
+                <p className="font-mono text-[10px] text-faint uppercase tracking-widest mb-2">{s.label}</p>
+                <p className="font-display text-3xl font-medium mb-1">{s.value}</p>
+                <p className="text-sm text-muted">{s.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
+      {/* Ticker */}
+      <div className="border-y border-border overflow-hidden py-3 bg-surface">
+        <div className="animate-marquee">
+          {tickers.map((item, i) => (
+            <span
+              key={i}
+              className="font-mono text-[11px] text-faint uppercase tracking-widest px-8 whitespace-nowrap"
+            >
+              {item}
+              <span className="ml-8 text-border-dark">·</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
       <Features />
+
+      {/* Pull quote */}
+      <div className="border-t border-b border-border py-20 px-6 bg-surface">
+        <div className="max-w-5xl mx-auto grid grid-cols-12 gap-8 items-start">
+          <div className="col-span-1">
+            <span className="font-display font-medium text-[96px] leading-none text-border-dark">&ldquo;</span>
+          </div>
+          <div className="col-span-11 pt-6">
+            <blockquote className="font-display text-4xl font-medium leading-tight max-w-3xl" style={{ color: "#3A2E24" }}>
+              The gap between writing code and shipping code
+              is where most effort disappears. Nimbus closes it.
+            </blockquote>
+          </div>
+        </div>
+      </div>
+
       <Workflow />
 
       {/* CTA */}
-      <section className="py-24 px-6 border-t border-border">
-        <div className="max-w-5xl mx-auto text-center">
-          <p className="font-mono text-accent text-xs tracking-widest uppercase mb-4">Get started</p>
-          <h2 className="font-sans font-black text-5xl mb-4">
-            Ship code.<br />Not just diffs.
-          </h2>
-          <p className="font-body text-muted text-lg mb-10 max-w-md mx-auto">
-            Clone the repo, add your API keys, and point Nimbus at your first PR task in under five minutes.
-          </p>
-          <div className="flex items-center justify-center gap-4">
-            <a
-              href="https://github.com/arpjw/nimbus"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-accent text-bg font-sans font-bold hover:bg-accent/90 transition-all glow-accent"
+      <section className="py-24 px-6 border-t border-border bg-surface">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 gap-20 items-start">
+          <div>
+            <p className="font-mono text-[10px] text-faint uppercase tracking-widest mb-6">Get started</p>
+            <h2 className="font-display font-medium leading-tight mb-6" style={{ fontSize: "56px" }}>
+              Operational<br />
+              <em className="italic" style={{ color: "#8E2D2D" }}>in minutes.</em>
+            </h2>
+            <p className="text-muted text-[15px] leading-relaxed max-w-sm">
+              Clone the repository, configure your API keys, and point Nimbus
+              at a target repository with a task description.
+            </p>
+            <div className="flex items-center gap-3 mt-8">
+              <a
+                href="https://github.com/arpjw/nimbus"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-5 py-2.5 bg-text text-bg text-sm font-medium hover:bg-brown rounded-sm transition-colors"
+              >
+                <Github size={13} /> View on GitHub
+              </a>
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 px-5 py-2.5 border border-border text-sm hover:border-border-dark rounded-sm transition-colors"
+              >
+                Dashboard
+              </Link>
+            </div>
+          </div>
+
+          <div>
+            <p className="font-mono text-[10px] text-faint uppercase tracking-widest mb-4">Quick start</p>
+            <div
+              className="font-mono text-[13px] leading-relaxed border border-border rounded-sm px-5 py-4"
+              style={{ background: "#16120D", color: "#C8BFB0" }}
             >
-              <Github size={16} /> Clone on GitHub
-            </a>
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2 px-6 py-3 rounded-xl border border-border text-text font-sans font-medium hover:border-border-bright transition-colors"
-            >
-              Open Dashboard
-            </Link>
+              <p style={{ color: "#5C5040" }}># clone and install</p>
+              <p>git clone github.com/arpjw/nimbus</p>
+              <p>cd nimbus/backend</p>
+              <p>pip install -r requirements.txt</p>
+              <p>&nbsp;</p>
+              <p style={{ color: "#5C5040" }}># configure</p>
+              <p>cp .env.example .env</p>
+              <p style={{ color: "#5C5040" }}># add ANTHROPIC_API_KEY, VOYAGE_API_KEY, GITHUB_TOKEN</p>
+              <p>&nbsp;</p>
+              <p style={{ color: "#5C5040" }}># start</p>
+              <p>uvicorn main:app --reload</p>
+            </div>
           </div>
         </div>
       </section>
@@ -134,15 +218,13 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-border py-8 px-6">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-sm bg-accent flex items-center justify-center">
-              <span className="font-sans font-black text-bg text-[10px]">N</span>
-            </div>
-            <span className="font-mono text-xs text-muted">Nimbus © 2026 · MIT License</span>
+          <div className="flex items-center gap-4">
+            <span className="font-display italic text-lg font-medium">Nimbus</span>
+            <span className="text-faint font-mono text-[11px]">MIT License · 2026</span>
           </div>
-          <div className="flex items-center gap-4 font-mono text-xs text-muted">
-            <a href="https://github.com/arpjw/nimbus" className="hover:text-text transition-colors">GitHub</a>
-            <a href="/docs" className="hover:text-text transition-colors">Docs</a>
+          <div className="flex items-center gap-6 font-mono text-[11px] text-faint">
+            <a href="https://github.com/arpjw/nimbus" className="hover:text-muted transition-colors">GitHub</a>
+            <a href="https://arpjw.github.io" className="hover:text-muted transition-colors">arpjw.github.io</a>
           </div>
         </div>
       </footer>
