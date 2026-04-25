@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     chunk_max_lines: int = 80
     chunk_overlap_lines: int = 10
 
+    github_webhook_secret: str = ""
+
     ws_ping_interval: int = 20
     cors_origins: list[str] = ["http://localhost:3000"]
 
