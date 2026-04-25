@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from database import init_db
-from api.routes.tasks import router as tasks_router
+from api.routes.tasks import router as tasks_router, review_router
 from api.routes.repos import ws_router, repo_router
 from github_app.webhooks import router as github_router
 
@@ -29,6 +29,7 @@ def health():
 
 
 app.include_router(tasks_router)
+app.include_router(review_router)
 app.include_router(ws_router)
 app.include_router(repo_router)
 app.include_router(github_router)

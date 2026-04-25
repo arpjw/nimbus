@@ -22,3 +22,10 @@ async def post_comment(repo_full_name: str, issue_number: int, body: str) -> Non
     url = f"{_GITHUB_API}/repos/{repo_full_name}/issues/{issue_number}/comments"
     async with httpx.AsyncClient() as client:
         await client.post(url, headers=_headers(), json={"body": body})
+
+
+async def post_pr_comment(pr_url: str, body: str) -> None:
+    parts = pr_url.rstrip("/").split("/")
+    repo_full = f"{parts[-4]}/{parts[-3]}"
+    number = int(parts[-1])
+    await post_comment(repo_full, number, body)

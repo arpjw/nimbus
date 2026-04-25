@@ -68,6 +68,40 @@ def _fmt_event(event: dict) -> str:
     return f"  {ts_str}  {phase_str}  {message}"
 
 
+_VERDICT_COLOR = {
+    "APPROVE": Fore.GREEN,
+    "REQUEST_CHANGES": Fore.RED,
+    "NEEDS_DISCUSSION": Fore.YELLOW,
+}
+
+
+async def _review(args: argparse.Namespace) -> int:
+    client = NimbusClient(args.backend)
+    print(f"Reviewing {args.pr_url} ...")
+    try:
+        result = await client.review_pr(args.pr_url, post=args.post)
+    except Exception as exc:
+        print(Fore.RED + f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    review: str = result["review"]
+    verdict: str = result["verdict"]
+    color = _VERDICT_COLOR.get(verdict, Fore.WHITE)
+
+    print()
+    for line in review.splitlines():
+        if "**Verdict**:" in line:
+            print(color + Style.BRIGHT + line + Style.RESET_ALL)
+        else:
+            print(line)
+    print()
+
+    if args.post:
+        print(Fore.CYAN + "Review posted to PR.")
+
+    return 0
+
+
 async def _run(args: argparse.Namespace) -> int:
     remote_url, repo_slug = get_git_remote()
     repo_name = repo_slug.split("/")[-1] if "/" in repo_slug else repo_slug
@@ -179,7 +213,23 @@ def main():
         help="Skip confirmation prompt",
     )
 
+    review_p = sub.add_parser("review", help="Review a GitHub PR diff")
+    review_p.add_argument("pr_url", metavar="PR_URL", help="GitHub PR URL, e.g. https://github.com/owner/repo/pull/1")
+    review_p.add_argument(
+        "--backend",
+        default="http://localhost:8000",
+        metavar="URL",
+        help="Nimbus backend URL (default: http://localhost:8000)",
+    )
+    review_p.add_argument(
+        "--post",
+        action="store_true",
+        help="Post the review as a comment on the PR",
+    )
+
     args = parser.parse_args()
+    if args.command == "review":
+        sys.exit(asyncio.run(_review(args)))
     sys.exit(asyncio.run(_run(args)))
 
 

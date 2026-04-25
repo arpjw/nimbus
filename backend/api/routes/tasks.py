@@ -1,14 +1,35 @@
 import asyncio
+import re
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from agent.orchestrator import run_task, _approval_events, _approval_results
+from agent.reviewer_external import review_pr as _review_pr
 from api.ws import manager, get_or_create_queue, pump_queue_to_ws
+from config import settings
 from database import get_session
+from github_app.github import post_pr_comment
 from models.task import Task, Repo, Phase
 from models.schemas import TaskCreate, TaskResponse
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+review_router = APIRouter(tags=["review"])
+
+
+class ReviewRequest(BaseModel):
+    pr_url: str
+    post: bool = False
+
+
+@review_router.post("/review")
+async def review_endpoint(body: ReviewRequest):
+    review = await _review_pr(body.pr_url, settings.github_token)
+    match = re.search(r"\*\*Verdict\*\*:\s*(APPROVE|REQUEST_CHANGES|NEEDS_DISCUSSION)", review)
+    verdict = match.group(1) if match else "NEEDS_DISCUSSION"
+    if body.post:
+        await post_pr_comment(body.pr_url, review)
+    return {"pr_url": body.pr_url, "review": review, "verdict": verdict}
 
 
 @router.post("/", response_model=TaskResponse)
