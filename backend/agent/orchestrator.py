@@ -23,8 +23,7 @@ from services.rag import RAGService
 from services.vector_store import VectorStore
 from tools.git_tools import GitManager
 from tools.file_tools import list_files, read_file
-
-import re
+from services.chunker import chunk_file
 
 _embedding_service = EmbeddingService()
 _vector_store = VectorStore()
@@ -64,38 +63,23 @@ async def _index_repository(repo: Repo, workspace: Path) -> None:
         except Exception:
             continue
 
-        lines = content.splitlines()
-        chunk_size = settings.chunk_max_lines
-        overlap = settings.chunk_overlap_lines
-
-        i = 0
-        while i < len(lines):
-            chunk_lines = lines[i : i + chunk_size]
-            chunk_text = "\n".join(chunk_lines)
-            if not chunk_text.strip():
-                i += chunk_size - overlap
-                continue
-
-            chunk_id = f"{repo.id}_{file_info['path']}_{i}"
-            safe_id = re.sub(r"[^a-zA-Z0-9_\-]", "_", chunk_id)[:128]
-            lang = file_info["extension"].lstrip(".") if file_info["extension"] else "text"
-
+        file_chunks = await chunk_file(file_info["path"], content, repo.id)
+        for chunk in file_chunks:
             meta = {
-                "chunk_id": safe_id,
-                "repo_id": repo.id,
-                "file_path": file_info["path"],
-                "language": lang,
-                "start_line": i + 1,
-                "end_line": min(i + chunk_size, len(lines)),
+                "chunk_id": chunk["chunk_id"],
+                "repo_id": chunk["repo_id"],
+                "file_path": chunk["file_path"],
+                "language": chunk["language"],
+                "start_line": chunk["start_line"],
+                "end_line": chunk["end_line"],
+                "symbol_name": chunk["symbol_name"] or "",
+                "symbol_type": chunk["symbol_type"],
             }
-
-            all_docs.append(chunk_text)
-            all_ids.append(safe_id)
+            all_docs.append(chunk["text"])
+            all_ids.append(chunk["chunk_id"])
             all_metas.append(meta)
-            bm25_docs.append(chunk_text)
+            bm25_docs.append(chunk["text"])
             bm25_metas.append(meta)
-
-            i += chunk_size - overlap
 
     if all_docs:
         embeddings = await _embedding_service.embed_documents(all_docs)
