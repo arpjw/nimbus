@@ -30,6 +30,9 @@ class Settings(BaseSettings):
 
     github_webhook_secret: str = ""
 
+    require_api_key: bool = False
+    free_tier_monthly_limit: int = 10
+
     ws_ping_interval: int = 20
     cors_origins: list[str] = ["http://localhost:3000"]
 

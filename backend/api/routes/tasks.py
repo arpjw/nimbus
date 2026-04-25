@@ -1,5 +1,6 @@
 import asyncio
 import re
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -12,6 +13,7 @@ from database import get_session
 from github_app.github import post_pr_comment
 from models.task import Task, Repo, Phase
 from models.schemas import TaskCreate, TaskResponse
+from services.auth import ApiKey, require_api_key, check_rate_limit
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 review_router = APIRouter(tags=["review"])
@@ -33,10 +35,16 @@ async def review_endpoint(body: ReviewRequest):
 
 
 @router.post("/", response_model=TaskResponse)
-async def create_task(body: TaskCreate, session: Session = Depends(get_session)):
+async def create_task(
+    body: TaskCreate,
+    session: Session = Depends(get_session),
+    api_key: ApiKey = Depends(require_api_key),
+):
     repo = session.get(Repo, body.repo_id)
     if not repo:
         raise HTTPException(status_code=404, detail="Repo not found")
+
+    await check_rate_limit(api_key)
 
     task = Task(
         workspace_id=body.workspace_id,
@@ -48,6 +56,12 @@ async def create_task(body: TaskCreate, session: Session = Depends(get_session))
     session.add(task)
     session.commit()
     session.refresh(task)
+
+    if api_key.id != "local":
+        api_key.task_count_month += 1
+        api_key.last_used_at = datetime.now(timezone.utc)
+        session.add(api_key)
+        session.commit()
 
     queue = get_or_create_queue(task.id)
     asyncio.create_task(run_task(task, repo, queue, issue_number=body.issue_number, repo_full_name=body.repo_full_name))

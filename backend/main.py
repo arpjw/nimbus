@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from database import init_db
+from api.routes.keys import router as keys_router
 from api.routes.tasks import router as tasks_router, review_router
 from api.routes.repos import ws_router, repo_router
 from github_app.webhooks import router as github_router
@@ -28,6 +29,7 @@ def health():
     return {"status": "ok", "version": "0.1.0"}
 
 
+app.include_router(keys_router)
 app.include_router(tasks_router)
 app.include_router(review_router)
 app.include_router(ws_router)

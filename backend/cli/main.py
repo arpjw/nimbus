@@ -79,7 +79,8 @@ _VERDICT_COLOR = {
 
 
 async def _review(args: argparse.Namespace) -> int:
-    client = NimbusClient(args.backend)
+    api_key = args.api_key or os.environ.get("NIMBUS_API_KEY")
+    client = NimbusClient(args.backend, api_key=api_key)
     print(f"Reviewing {args.pr_url} ...")
     try:
         result = await client.review_pr(args.pr_url, post=args.post)
@@ -134,7 +135,8 @@ async def _issue(args: argparse.Namespace) -> int:
     body: str = issue_data.get("body") or ""
     description = f"{title}\n\n{body}".strip()
 
-    client = NimbusClient(args.backend)
+    api_key = args.api_key or os.environ.get("NIMBUS_API_KEY")
+    client = NimbusClient(args.backend, api_key=api_key)
 
     try:
         workspace = await client.get_or_create_workspace(repo_name)
@@ -230,7 +232,8 @@ async def _run(args: argparse.Namespace) -> int:
     remote_url, repo_slug = get_git_remote()
     repo_name = repo_slug.split("/")[-1] if "/" in repo_slug else repo_slug
 
-    client = NimbusClient(args.backend)
+    api_key = args.api_key or os.environ.get("NIMBUS_API_KEY")
+    client = NimbusClient(args.backend, api_key=api_key)
 
     try:
         workspace = await client.get_or_create_workspace(repo_name)
@@ -336,6 +339,12 @@ def main():
         action="store_true",
         help="Skip confirmation prompt",
     )
+    run_p.add_argument(
+        "--api-key",
+        default=None,
+        metavar="KEY",
+        help="Nimbus API key (defaults to NIMBUS_API_KEY env var)",
+    )
 
     review_p = sub.add_parser("review", help="Review a GitHub PR diff")
     review_p.add_argument("pr_url", metavar="PR_URL", help="GitHub PR URL, e.g. https://github.com/owner/repo/pull/1")
@@ -349,6 +358,12 @@ def main():
         "--post",
         action="store_true",
         help="Post the review as a comment on the PR",
+    )
+    review_p.add_argument(
+        "--api-key",
+        default=None,
+        metavar="KEY",
+        help="Nimbus API key (defaults to NIMBUS_API_KEY env var)",
     )
 
     issue_p = sub.add_parser("issue", help="Run Nimbus on a GitHub issue")
@@ -369,6 +384,12 @@ def main():
         default=None,
         metavar="TOKEN",
         help="GitHub token (defaults to NIMBUS_GITHUB_TOKEN or GITHUB_TOKEN env var)",
+    )
+    issue_p.add_argument(
+        "--api-key",
+        default=None,
+        metavar="KEY",
+        help="Nimbus API key (defaults to NIMBUS_API_KEY env var)",
     )
 
     args = parser.parse_args()

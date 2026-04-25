@@ -6,12 +6,13 @@ import websockets
 
 
 class NimbusClient:
-    def __init__(self, backend: str):
+    def __init__(self, backend: str, api_key: str | None = None):
         self.base_url = backend.rstrip("/")
         self.ws_base = self.base_url.replace("https://", "wss://").replace("http://", "ws://")
+        self._headers = {"X-API-Key": api_key} if api_key else {}
 
     async def get_or_create_workspace(self, name: str) -> dict:
-        async with httpx.AsyncClient() as http:
+        async with httpx.AsyncClient(headers=self._headers) as http:
             resp = await http.get(f"{self.base_url}/workspaces/")
             resp.raise_for_status()
             for ws in resp.json():
@@ -22,7 +23,7 @@ class NimbusClient:
             return resp.json()
 
     async def get_or_create_repo(self, workspace_id: str, url: str, name: str) -> dict:
-        async with httpx.AsyncClient() as http:
+        async with httpx.AsyncClient(headers=self._headers) as http:
             resp = await http.get(f"{self.base_url}/workspaces/{workspace_id}/repos")
             resp.raise_for_status()
             for repo in resp.json():
@@ -48,18 +49,18 @@ class NimbusClient:
             payload["issue_number"] = issue_number
         if repo_full_name is not None:
             payload["repo_full_name"] = repo_full_name
-        async with httpx.AsyncClient() as http:
+        async with httpx.AsyncClient(headers=self._headers) as http:
             resp = await http.post(f"{self.base_url}/tasks/", json=payload)
             resp.raise_for_status()
             return resp.json()
 
     async def approve_task(self, task_id: str) -> None:
-        async with httpx.AsyncClient() as http:
+        async with httpx.AsyncClient(headers=self._headers) as http:
             resp = await http.post(f"{self.base_url}/tasks/{task_id}/approve")
             resp.raise_for_status()
 
     async def reject_task(self, task_id: str) -> None:
-        async with httpx.AsyncClient() as http:
+        async with httpx.AsyncClient(headers=self._headers) as http:
             resp = await http.post(f"{self.base_url}/tasks/{task_id}/reject")
             resp.raise_for_status()
 
@@ -74,6 +75,7 @@ class NimbusClient:
 
     async def stream_task(self, task_id: str) -> AsyncGenerator[dict, None]:
         uri = f"{self.ws_base}/tasks/{task_id}/ws"
-        async with websockets.connect(uri) as ws:
+        extra_headers = list(self._headers.items()) if self._headers else None
+        async with websockets.connect(uri, extra_headers=extra_headers) as ws:
             async for raw in ws:
                 yield json.loads(raw)
