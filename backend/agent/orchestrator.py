@@ -18,6 +18,7 @@ from agent.verifier import verify
 from agent.reviewer import self_review, respond_to_comments
 from config import settings
 from database import engine
+from github_app.github import post_comment
 from models.task import Task, Phase, Repo, RepoStatus
 from services.embedding import EmbeddingService
 from services.rag import RAGService
@@ -103,7 +104,13 @@ async def _build_file_tree(workspace: Path) -> str:
     return "\n".join(f["path"] for f in files)
 
 
-async def run_task(task: Task, repo: Repo, queue: asyncio.Queue) -> None:
+async def run_task(
+    task: Task,
+    repo: Repo,
+    queue: asyncio.Queue,
+    issue_number: int | None = None,
+    repo_full_name: str | None = None,
+) -> None:
     emit = lambda phase, msg, data=None: _emit_event(queue, task.id, phase, msg, data)
 
     workspace = settings.workspace_path / task.id
@@ -211,6 +218,16 @@ async def run_task(task: Task, repo: Repo, queue: asyncio.Queue) -> None:
         _update_task(task.id, phase=Phase.DONE, completed_at=datetime.utcnow())
         await emit(Phase.DONE, "Task complete!", {"pr_url": pr_url, "verdict": review_result.verdict})
 
+        if issue_number is not None and repo_full_name is not None:
+            try:
+                await post_comment(
+                    repo_full_name,
+                    issue_number,
+                    f"**Nimbus** opened a PR: {pr_url}\n\nSelf-review verdict: {review_result.verdict}",
+                )
+            except Exception:
+                pass
+
         asyncio.create_task(respond_to_comments(pr_url, _git_manager))
 
         try:
@@ -222,6 +239,11 @@ async def run_task(task: Task, repo: Repo, queue: asyncio.Queue) -> None:
         error_str = str(exc)[:500]
         _update_task(task.id, phase=Phase.FAILED, error=error_str)
         await emit(Phase.FAILED, f"Task failed: {exc}")
+        if issue_number is not None and repo_full_name is not None:
+            try:
+                await post_comment(repo_full_name, issue_number, f"**Nimbus** failed: {error_str}")
+            except Exception:
+                pass
         if plan is not None:
             try:
                 verification_passed = verification.passed if verification is not None else False

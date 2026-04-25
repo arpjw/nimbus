@@ -1,8 +1,11 @@
 import argparse
 import asyncio
+import os
+import re
 import sys
 from datetime import datetime, timezone
 
+import httpx
 from colorama import Fore, Style, init
 
 from cli.client import NimbusClient
@@ -98,6 +101,127 @@ async def _review(args: argparse.Namespace) -> int:
 
     if args.post:
         print(Fore.CYAN + "Review posted to PR.")
+
+    return 0
+
+
+async def _issue(args: argparse.Namespace) -> int:
+    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/issues/(\d+)", args.issue_url.rstrip("/"))
+    if not match:
+        print(Fore.RED + "Invalid GitHub issue URL. Expected: https://github.com/owner/repo/issues/NUMBER", file=sys.stderr)
+        return 1
+
+    owner, repo_name, issue_number_str = match.group(1), match.group(2), match.group(3)
+    issue_number = int(issue_number_str)
+    repo_full_name = f"{owner}/{repo_name}"
+    repo_url = f"https://github.com/{repo_full_name}"
+
+    token = args.token or os.environ.get("NIMBUS_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    headers: dict = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+    if token:
+        headers["Authorization"] = f"token {token}"
+
+    try:
+        async with httpx.AsyncClient() as http:
+            resp = await http.get(f"https://api.github.com/repos/{repo_full_name}/issues/{issue_number}", headers=headers)
+            resp.raise_for_status()
+            issue_data = resp.json()
+    except Exception as exc:
+        print(Fore.RED + f"Failed to fetch issue: {exc}", file=sys.stderr)
+        return 1
+
+    title: str = issue_data.get("title", "")
+    body: str = issue_data.get("body") or ""
+    description = f"{title}\n\n{body}".strip()
+
+    client = NimbusClient(args.backend)
+
+    try:
+        workspace = await client.get_or_create_workspace(repo_name)
+        print(f"workspace  {workspace['name']}  ({workspace['id'][:8]}...)")
+
+        repo = await client.get_or_create_repo(workspace["id"], repo_url, repo_name)
+        print(f"repo       {repo['name']}  ({repo['id'][:8]}...)")
+
+        task = await client.create_task(
+            workspace["id"],
+            repo["id"],
+            description,
+            issue_number=issue_number,
+            repo_full_name=repo_full_name,
+        )
+        desc_preview = task["description"][:60]
+        print(f"task       {task['id'][:8]}...  {desc_preview}")
+
+    except Exception as exc:
+        print(Fore.RED + f"Error communicating with backend: {exc}", file=sys.stderr)
+        return 1
+
+    if not args.yes:
+        print()
+        try:
+            answer = input("Start execution? [y/N] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            return 0
+        if answer != "y":
+            print("Aborted.")
+            return 0
+
+    print()
+    try:
+        async for event in client.stream_task(task["id"]):
+            print(_fmt_event(event))
+            phase = event.get("phase", "")
+            if phase == "awaiting_approval":
+                changes = event.get("data", {}).get("changes", [])
+                print()
+                _print_plan_table(changes)
+                print()
+                if args.yes:
+                    try:
+                        await client.approve_task(task["id"])
+                    except Exception as exc:
+                        print(Fore.RED + f"Failed to approve: {exc}", file=sys.stderr)
+                        return 1
+                else:
+                    n = len(changes)
+                    try:
+                        answer = input(f"Proceed with {n} change{'s' if n != 1 else ''}? [y/N] ").strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        print("\nAborted.")
+                        try:
+                            await client.reject_task(task["id"])
+                        except Exception:
+                            pass
+                        return 1
+                    if answer == "y":
+                        try:
+                            await client.approve_task(task["id"])
+                        except Exception as exc:
+                            print(Fore.RED + f"Failed to approve: {exc}", file=sys.stderr)
+                            return 1
+                    else:
+                        try:
+                            await client.reject_task(task["id"])
+                        except Exception:
+                            pass
+                        return 1
+            elif phase == "done":
+                pr_url = event.get("data", {}).get("pr_url")
+                print()
+                if pr_url:
+                    print(Fore.GREEN + Style.BRIGHT + f"PR: {pr_url}")
+                else:
+                    print(Fore.GREEN + Style.BRIGHT + "Done.")
+                return 0
+            elif phase == "failed":
+                print()
+                print(Fore.RED + Style.BRIGHT + f"Failed: {event.get('message', 'unknown error')}")
+                return 1
+    except Exception as exc:
+        print(Fore.RED + f"\nConnection error: {exc}", file=sys.stderr)
+        return 1
 
     return 0
 
@@ -227,9 +351,31 @@ def main():
         help="Post the review as a comment on the PR",
     )
 
+    issue_p = sub.add_parser("issue", help="Run Nimbus on a GitHub issue")
+    issue_p.add_argument("issue_url", metavar="ISSUE_URL", help="GitHub issue URL, e.g. https://github.com/owner/repo/issues/1")
+    issue_p.add_argument(
+        "--backend",
+        default="http://localhost:8000",
+        metavar="URL",
+        help="Nimbus backend URL (default: http://localhost:8000)",
+    )
+    issue_p.add_argument(
+        "--yes", "-y",
+        action="store_true",
+        help="Skip confirmation prompts",
+    )
+    issue_p.add_argument(
+        "--token",
+        default=None,
+        metavar="TOKEN",
+        help="GitHub token (defaults to NIMBUS_GITHUB_TOKEN or GITHUB_TOKEN env var)",
+    )
+
     args = parser.parse_args()
     if args.command == "review":
         sys.exit(asyncio.run(_review(args)))
+    if args.command == "issue":
+        sys.exit(asyncio.run(_issue(args)))
     sys.exit(asyncio.run(_run(args)))
 
 

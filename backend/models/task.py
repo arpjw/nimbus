@@ -57,6 +57,8 @@ class Task(SQLModel, table=True):
     iteration: int = 0
     error: Optional[str] = None
     plan: Optional[str] = None
+    issue_number: Optional[int] = None
+    repo_full_name: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = None

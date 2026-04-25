@@ -38,6 +38,8 @@ class TaskCreate(BaseModel):
     workspace_id: str
     repo_id: str
     description: str
+    issue_number: Optional[int] = None
+    repo_full_name: Optional[str] = None
 
 
 class TaskResponse(BaseModel):

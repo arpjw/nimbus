@@ -42,13 +42,15 @@ async def create_task(body: TaskCreate, session: Session = Depends(get_session))
         workspace_id=body.workspace_id,
         repo_id=body.repo_id,
         description=body.description,
+        issue_number=body.issue_number,
+        repo_full_name=body.repo_full_name,
     )
     session.add(task)
     session.commit()
     session.refresh(task)
 
     queue = get_or_create_queue(task.id)
-    asyncio.create_task(run_task(task, repo, queue))
+    asyncio.create_task(run_task(task, repo, queue, issue_number=body.issue_number, repo_full_name=body.repo_full_name))
     asyncio.create_task(pump_queue_to_ws(task.id))
 
     return task

@@ -35,12 +35,21 @@ class NimbusClient:
             resp.raise_for_status()
             return resp.json()
 
-    async def create_task(self, workspace_id: str, repo_id: str, description: str) -> dict:
+    async def create_task(
+        self,
+        workspace_id: str,
+        repo_id: str,
+        description: str,
+        issue_number: int | None = None,
+        repo_full_name: str | None = None,
+    ) -> dict:
+        payload: dict = {"workspace_id": workspace_id, "repo_id": repo_id, "description": description}
+        if issue_number is not None:
+            payload["issue_number"] = issue_number
+        if repo_full_name is not None:
+            payload["repo_full_name"] = repo_full_name
         async with httpx.AsyncClient() as http:
-            resp = await http.post(
-                f"{self.base_url}/tasks/",
-                json={"workspace_id": workspace_id, "repo_id": repo_id, "description": description},
-            )
+            resp = await http.post(f"{self.base_url}/tasks/", json=payload)
             resp.raise_for_status()
             return resp.json()
 

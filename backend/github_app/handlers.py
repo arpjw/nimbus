@@ -6,7 +6,7 @@ from agent.orchestrator import run_task
 from api.ws import get_or_create_queue, pump_queue_to_ws
 from database import engine
 from models.task import Task, Repo, Workspace
-from github_app.github import post_reaction
+from github_app.github import post_reaction, post_comment
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,14 @@ def _find_or_create_workspace_and_repo(session: Session, repo_url: str, repo_ful
     return workspace, repo
 
 
-def _queue_task(task: Task, repo: Repo) -> None:
+def _queue_task(
+    task: Task,
+    repo: Repo,
+    issue_number: int | None = None,
+    repo_full_name: str | None = None,
+) -> None:
     queue = get_or_create_queue(task.id)
-    asyncio.create_task(run_task(task, repo, queue))
+    asyncio.create_task(run_task(task, repo, queue, issue_number=issue_number, repo_full_name=repo_full_name))
     asyncio.create_task(pump_queue_to_ws(task.id))
 
 
@@ -79,6 +84,7 @@ async def handle_issues(payload: dict) -> None:
         return
 
     issue = payload["issue"]
+    issue_number: int = issue["number"]
     title: str = issue.get("title", "")
     body: str = issue.get("body") or ""
     description = f"{title}\n\n{body}".strip()
@@ -93,11 +99,19 @@ async def handle_issues(payload: dict) -> None:
             workspace_id=workspace.id,
             repo_id=repo.id,
             description=description,
+            issue_number=issue_number,
+            repo_full_name=repo_full_name,
         )
         session.add(task)
         session.commit()
         session.refresh(task)
-        _queue_task(task, repo)
+        _queue_task(task, repo, issue_number=issue_number, repo_full_name=repo_full_name)
+
+    await post_comment(
+        repo_full_name,
+        issue_number,
+        "**Nimbus** is on it. Task queued -- I'll update this issue when the PR is ready.",
+    )
 
 
 async def handle_pull_request(payload: dict) -> None:
