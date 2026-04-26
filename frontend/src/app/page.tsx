@@ -238,7 +238,7 @@ function Navbar() {
 
         {/* Nav links */}
         <div style={{ display: "flex", gap: 32 }}>
-          {[["Product", "#product"], ["Prism", "/prism"], ["API", "https://api.get-nimbus.com/docs"], ["Changelog", "#changelog"], ["GitHub", "https://github.com/arpjw/nimbus"]].map(([l, h]) => (
+          {[["Product", "#product"], ["Prism", "/prism"], ["Docs", "https://docs.get-nimbus.com"], ["API", "https://api.get-nimbus.com/docs"], ["Changelog", "#changelog"], ["GitHub", "https://github.com/arpjw/nimbus"]].map(([l, h]) => (
             <a key={l} href={h} style={{ fontFamily: sans, fontSize: 14, fontWeight: 500, color: C.muted, textDecoration: "none", transition: "color 0.2s" }}>{l}</a>
           ))}
         </div>
