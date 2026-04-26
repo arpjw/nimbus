@@ -71,6 +71,39 @@ Free tier: 10 tasks/month on public repos.
 ```bash
 curl -fsSL https://get-nimbus.com/install | sh
 ```
+
+---
+
+## SDKs
+
+**Python** (`pip install nimbus-sdk`):
+```python
+from nimbus_sdk import NimbusClient
+client = NimbusClient(api_key="nk_...")
+task = client.tasks.run("add rate limiting", repo="acme/api")
+task.wait()
+print(task.pr_url)
+```
+
+**TypeScript** (`npm install @nimbus-ai/client`):
+```typescript
+import { NimbusClient } from '@nimbus-ai/client';
+const client = new NimbusClient({ apiKey: 'nk_...' });
+const task = await client.tasks.run({ description: 'add rate limiting', repo: 'acme/api' });
+await task.wait();
+console.log(task.prUrl);
+```
+
+**GitHub Actions** (see [arpjw/nimbus-action](https://github.com/arpjw/nimbus-action)):
+```yaml
+- uses: arpjw/nimbus-action@v1
+  with:
+    task: review
+    api_key: ${{ secrets.NIMBUS_API_KEY }}
+```
+
+---
+
 ## Interactive terminal
 
 Type `nimbus` with no arguments to launch the interactive REPL:
