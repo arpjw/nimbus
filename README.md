@@ -4,7 +4,11 @@
 
 Nimbus is a multi-repository SWE agent that plans, implements, and reviews code against real codebases — entirely on its own. Run it from your terminal, VS Code, Slack, or Linear. Powered by Claude and Voyage AI.
 
-[get-nimbus.com](https://get-nimbus.com) · [api.get-nimbus.com](https://api.get-nimbus.com) · MIT License
+[![PyPI version](https://badge.fury.io/py/nimbus-ai.svg)](https://pypi.org/project/nimbus-ai/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
+[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+[get-nimbus.com](https://get-nimbus.com) · [docs.get-nimbus.com](https://docs.get-nimbus.com) · [api.get-nimbus.com](https://api.get-nimbus.com) · MIT License
 
 ---
 
@@ -21,7 +25,15 @@ It runs locally on your machine or hosted on Railway — your choice.
 ### Install
 
 ```bash
+# pip (recommended)
 pip install nimbus-ai
+
+# Homebrew (Mac)
+brew tap arpjw/tap
+brew install nimbus
+
+# curl
+curl -fsSL https://get-nimbus.com/install | sh
 ```
 
 ### Configure
@@ -562,4 +574,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-Built by [Arya Somu](https://aryasomu.com) · [get-nimbus.com](https://get-nimbus.com)
+Built by [Arya Somu](https://aryasomu.com) · [get-nimbus.com](https://get-nimbus.com) · [docs.get-nimbus.com](https://docs.get-nimbus.com)
