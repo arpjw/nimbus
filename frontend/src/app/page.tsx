@@ -261,22 +261,167 @@ export default function Page() {
               { name: "PagerDuty", slug: "pagerduty" },
               { name: "Anthropic", slug: "anthropic" },
             ].map(({ name, slug }) => (
-              <div key={name} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: 0.28 }}>
+              <div key={name} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: 0.35 }}>
                 <img
                   src={`https://cdn.simpleicons.org/${slug}/ffffff`}
                   alt={name}
                   width={22}
                   height={22}
-                  style={{ filter: "brightness(0) invert(1)" }}
                 />
-                <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.6)", letterSpacing: "0.04em" }}>{name}</span>
+                <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.04em" }}>{name}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* ── FEATURE 1: Issues → PRs ── */}
+
+      {/* ── USE NIMBUS EVERYWHERE ── */}
+      <section style={{ padding: "100px 28px" }}>
+        <div style={{ maxWidth: W, margin: "0 auto" }}>
+          <FadeUp>
+            <h2 style={{ fontFamily: serif, fontSize: 34, fontWeight: 400, letterSpacing: "-0.02em", marginBottom: 8, color: C.text }}>
+              Use Nimbus everywhere you work
+            </h2>
+            <p style={{ fontFamily: sans, fontSize: 16, color: C.muted, marginBottom: 48 }}>
+              A unified engineering agent across every surface.
+            </p>
+          </FadeUp>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+
+            {/* Card 1: Terminal */}
+            <FadeUp delay={0}>
+              <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden", background: "#0d0d0d", display: "flex", flexDirection: "column" }}>
+                {/* Screenshot area */}
+                <div style={{ background: "#0a0a0a", padding: "20px 18px 0", borderBottom: "1px solid rgba(255,255,255,0.06)", minHeight: 240, position: "relative", overflow: "hidden" }}>
+                  <div style={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                      <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.2)", marginLeft: 8 }}>nimbus — zsh</span>
+                    </div>
+                    <div style={{ padding: "14px 16px", fontFamily: mono, fontSize: 11, lineHeight: 1.8 }}>
+                      <div style={{ color: "#c4a96a", fontSize: 10, marginBottom: 6 }}>
+                        {"  ██╗   ██╗██╗███╗   ███╗"}<br/>
+                        {"  ╚██╗ ██╔╝██║████╗ ████║"}<br/>
+                        {"   ╚████╔╝ ██║██╔████╔██║"}
+                      </div>
+                      <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 10, marginBottom: 8 }}>autonomous software engineering · v1.1.0</div>
+                      <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>repo &nbsp;&nbsp; github.com/acme/api</div>
+                      <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>branch &nbsp;main · 847 files <span style={{ color: "#6aab7a" }}>ready</span></div>
+                      <div style={{ marginTop: 10, color: "rgba(255,255,255,0.15)", fontSize: 10 }}>────────────────────────</div>
+                      <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ color: "#c4a96a", fontSize: 11 }}>nimbus</span>
+                        <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 11 }}>›</span>
+                        <span style={{ display: "inline-block", width: 6, height: 12, background: "rgba(255,255,255,0.5)", animation: "blink 1s step-end infinite" }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Card body */}
+                <div style={{ padding: "22px 22px 24px" }}>
+                  <p style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>Terminal</p>
+                  <p style={{ fontFamily: sans, fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 18 }}>Run agents in any terminal. Interactive REPL with live diffs, voice input, session replay, and ambient watch mode.</p>
+                  <div style={{ background: "#111", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <code style={{ fontFamily: mono, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>pip install nimbus-ai</code>
+                    <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.2)" }}>↗</span>
+                  </div>
+                </div>
+              </div>
+            </FadeUp>
+
+            {/* Card 2: VS Code */}
+            <FadeUp delay={80}>
+              <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden", background: "#0d0d0d", display: "flex", flexDirection: "column" }}>
+                <div style={{ background: "#0a0a0a", padding: "20px 18px 0", borderBottom: "1px solid rgba(255,255,255,0.06)", minHeight: 240, overflow: "hidden" }}>
+                  <div style={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                      <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.2)", marginLeft: 8 }}>Nimbus</span>
+                    </div>
+                    <div style={{ padding: "12px 14px", fontFamily: mono, fontSize: 11 }}>
+                      {/* Phase timeline */}
+                      {[
+                        { label: "Clone", done: true },
+                        { label: "Index", done: true },
+                        { label: "Plan", done: true },
+                        { label: "Implement", active: true },
+                        { label: "Verify", done: false },
+                        { label: "PR", done: false },
+                      ].map((p, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: p.done ? "#6aab7a" : p.active ? "#c4a96a" : "rgba(255,255,255,0.1)", flexShrink: 0 }} />
+                          <span style={{ fontSize: 11, color: p.done ? "rgba(255,255,255,0.4)" : p.active ? "#FAFAFA" : "rgba(255,255,255,0.15)" }}>{p.label}</span>
+                          {p.active && <span style={{ fontSize: 10, color: "#c4a96a" }}>writing files...</span>}
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 10, padding: "6px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 5, border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <span style={{ color: "#6aab7a", fontSize: 10 }}>write </span>
+                        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>src/middleware/auth.ts +18</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ padding: "22px 22px 24px" }}>
+                  <p style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>VS Code / Cursor</p>
+                  <p style={{ fontFamily: sans, fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 18 }}>Right-click any file and run Nimbus. Phase timeline and live logs stream directly in the editor panel.</p>
+                  <a href="https://github.com/arpjw/nimbus-vscode" target="_blank" rel="noopener noreferrer"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: sans, fontSize: 13, fontWeight: 500, color: C.bg, background: C.text, padding: "8px 18px", borderRadius: 999, textDecoration: "none" }}>
+                    Install extension →
+                  </a>
+                </div>
+              </div>
+            </FadeUp>
+
+            {/* Card 3: Web */}
+            <FadeUp delay={160}>
+              <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden", background: "#0d0d0d", display: "flex", flexDirection: "column" }}>
+                <div style={{ background: "#0a0a0a", padding: "20px 18px 0", borderBottom: "1px solid rgba(255,255,255,0.06)", minHeight: 240, overflow: "hidden" }}>
+                  <div style={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+                      <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.2)", marginLeft: 8 }}>get-nimbus.com/dashboard</span>
+                    </div>
+                    <div style={{ padding: "12px 14px", fontFamily: sans, fontSize: 11 }}>
+                      {/* Task list */}
+                      {[
+                        { task: "migrate auth to JWT", status: "done", time: "2m ago" },
+                        { task: "add rate limiting to /upload", status: "done", time: "18m ago" },
+                        { task: "generate integration tests", status: "running", time: "now" },
+                        { task: "security audit — OWASP", status: "queued", time: "—" },
+                      ].map((t, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", borderRadius: 5, marginBottom: 3, background: t.status === "running" ? "rgba(196,169,106,0.05)" : "transparent", border: t.status === "running" ? "1px solid rgba(196,169,106,0.1)" : "1px solid transparent" }}>
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, background: t.status === "done" ? "#6aab7a" : t.status === "running" ? "#c4a96a" : "rgba(255,255,255,0.1)" }} />
+                          <span style={{ fontSize: 11, color: t.status === "done" ? "rgba(255,255,255,0.35)" : t.status === "running" ? "#FAFAFA" : "rgba(255,255,255,0.2)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.task}</span>
+                          <span style={{ fontFamily: mono, fontSize: 9, color: "rgba(255,255,255,0.2)", flexShrink: 0 }}>{t.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ padding: "22px 22px 24px" }}>
+                  <p style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>Web</p>
+                  <p style={{ fontFamily: sans, fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 18 }}>Trigger tasks from your browser, phone, or Slack. Dashboard shows live task history, memory, and PR results.</p>
+                  <a href="https://get-nimbus.com/dashboard"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: sans, fontSize: 13, fontWeight: 500, color: C.bg, background: C.text, padding: "8px 18px", borderRadius: 999, textDecoration: "none" }}>
+                    Open dashboard →
+                  </a>
+                </div>
+              </div>
+            </FadeUp>
+
+          </div>
+        </div>
+      </section>
+
+      <div style={divider} />
+
+      {/* ── FEATURE 1: Issues → PRs ── */
       <section id="product" style={sec()}>
         <div style={{ maxWidth: W, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 80, alignItems: "center" }}>
           <FadeUp>
