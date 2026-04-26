@@ -276,7 +276,7 @@ export default function Page() {
                 Autonomous software engineering,{" "}
                 <em style={{ fontStyle: "italic" }}>stratified.</em>
               </h1>
-              <p style={{ fontFamily: sans, fontSize: 18, color: C.muted, lineHeight: 1.65, marginBottom: 36, maxWidth: 520, margin: "0 auto 36px" }}>
+              <p style={{ fontFamily: sans, fontSize: 18, color: C.muted, lineHeight: 1.65, marginBottom: 36 }}>
                 Nimbus plans, implements, and reviews code against real repositories — entirely on its own. From task description to merged PR.
               </p>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -489,8 +489,9 @@ export default function Page() {
           SECTION 8 — FINAL CTA
       ═══════════════════════════════════════ */}
       <section style={{ padding: "160px 32px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         <FadeUp>
-          <div>
+          <div style={{ textAlign: "center" }}>
             <h2 style={{ fontFamily: serif, fontSize: 56, fontWeight: 400, letterSpacing: "-0.03em", lineHeight: 1.0, color: C.text, marginBottom: 48 }}>
               Try Nimbus <em style={{ fontStyle: "italic" }}>now.</em>
             </h2>
@@ -509,6 +510,7 @@ export default function Page() {
             </p>
           </div>
         </FadeUp>
+        </div>
       </section>
 
       <Divider />
