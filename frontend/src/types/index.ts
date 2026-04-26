@@ -15,9 +15,48 @@ export interface Task {
   pr_url: string | null;
   error: string | null;
   plan: string | null;
+  repo_full_name: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+}
+
+export interface MemoryEntry {
+  id: string;
+  text: string;
+  metadata: {
+    repo_id: string;
+    label?: string;
+    task_description?: string;
+    timestamp: string;
+  };
+}
+
+export interface KeyInfo {
+  id: string;
+  name: string;
+  owner_email: string;
+  tier: string;
+  task_count_month: number;
+  monthly_limit: number | null;
+  last_used_at: string | null;
+}
+
+export interface GeneratedKey {
+  id: string;
+  raw_key: string;
+  name: string;
+  owner_email: string;
+  tier: string;
+}
+
+export interface Commit {
+  sha: string;
+  commit: {
+    message: string;
+    author: { name: string; date: string };
+  };
+  html_url: string;
 }
 
 export interface Repo {

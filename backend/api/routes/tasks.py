@@ -17,9 +17,14 @@ from models.task import Task, Repo, Phase
 from models.schemas import TaskCreate, TaskResponse
 from services.auth import ApiKey, require_api_key, check_rate_limit
 
+from services.review_rules import ReviewRulesService
+
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 review_router = APIRouter(tags=["review"])
 test_router = APIRouter(tags=["tests"])
+rules_router = APIRouter(prefix="/repos", tags=["rules"])
+
+_review_rules_service = ReviewRulesService()
 
 
 class ReviewRequest(BaseModel):
@@ -193,6 +198,25 @@ def _find_workspace_file(repo_id: str, file_path: str, session: Session) -> tupl
             return workspace, candidate.read_text()
 
     raise HTTPException(status_code=404, detail=f"File not found in any workspace for repo {repo_id}")
+
+
+@rules_router.get("/{repo_id}/rules")
+async def list_rules(repo_id: str, session: Session = Depends(get_session)):
+    repo = session.get(Repo, repo_id)
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    return await _review_rules_service.list_rules(repo_id)
+
+
+@rules_router.delete("/{repo_id}/rules/{rule_id}")
+async def disable_rule(repo_id: str, rule_id: str, session: Session = Depends(get_session)):
+    repo = session.get(Repo, repo_id)
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    found = await _review_rules_service.disable_rule(repo_id, rule_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return {"status": "disabled"}
 
 
 @test_router.post("/generate-tests")

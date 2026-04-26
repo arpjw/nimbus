@@ -113,8 +113,28 @@ async def run_task(
     queue: asyncio.Queue,
     issue_number: int | None = None,
     repo_full_name: str | None = None,
+    slack_channel: str | None = None,
 ) -> None:
     emit = lambda phase, msg, data=None: _emit_event(queue, task.id, phase, msg, data)
+
+    _slack = None
+    _slack_ts: str | None = None
+    _task_start = datetime.utcnow()
+
+    if slack_channel:
+        from slack_app.notifier import SlackNotifier
+        _slack = SlackNotifier()
+        try:
+            _slack_ts = await _slack.on_task_start(slack_channel, task.id, task.description)
+        except Exception:
+            pass
+
+    async def _notify(phase: str, detail: str) -> None:
+        if _slack and _slack_ts:
+            try:
+                await _slack.on_phase_update(slack_channel, _slack_ts, phase, detail)
+            except Exception:
+                pass
 
     workspace = settings.workspace_path / task.id
     workspace.mkdir(parents=True, exist_ok=True)
@@ -131,11 +151,13 @@ async def run_task(
         await _git_manager.create_branch(git_repo, branch_name)
         _update_task(task.id, branch_name=branch_name)
         await emit(Phase.CLONING, f"Branch created: {branch_name}")
+        await _notify("clone", f"Cloned {repo.url} -- branch: {branch_name}")
 
         await emit(Phase.INDEXING, "Building Voyage AI code embeddings (voyage-code-2)...")
         _update_task(task.id, phase=Phase.INDEXING)
         await _index_repository(repo, workspace)
         await emit(Phase.INDEXING, f"Indexed {repo.chunk_count} chunks across {repo.file_count} files")
+        await _notify("index", f"Indexed {repo.chunk_count} chunks across {repo.file_count} files")
 
         await emit(Phase.PLANNING, "Generating implementation plan (Claude Opus)...")
         _update_task(task.id, phase=Phase.PLANNING)
@@ -144,6 +166,7 @@ async def run_task(
         plan = await generate_plan(task.description, [repo.id], _rag_service, file_tree, memories=memories)
         _update_task(task.id, plan=plan.raw)
         await emit(Phase.PLANNING, f"Plan: {plan.summary}", {"changes": len(plan.changes)})
+        await _notify("plan", f"Plan: {plan.summary} ({len(plan.changes)} changes)")
 
         for change in plan.changes:
             await emit(Phase.PLANNING, f"  [{change.action.upper()}] {change.path}: {change.description[:80]}")
@@ -190,6 +213,7 @@ async def run_task(
             verification = await verify(workspace)
 
             await emit(Phase.VERIFYING, f"Checks: {', '.join(verification.checks_run)} | Passed: {verification.passed}")
+            await _notify("verify", f"Checks: {', '.join(verification.checks_run)} | Passed: {verification.passed}")
 
             if verification.passed:
                 break
@@ -244,6 +268,7 @@ async def run_task(
         pr_url = await _git_manager.create_pr(repo.url, branch_name, task.description, review_body)
         _update_task(task.id, pr_url=pr_url)
         await emit(Phase.REVIEWING, f"PR created: {pr_url}", {"pr_url": pr_url})
+        await _notify("pr", f"PR created: {pr_url}")
 
         await emit(Phase.REVIEWING, "Performing self-review (Claude Sonnet)...")
         review_result = await self_review(pr_url, _git_manager)
@@ -256,6 +281,12 @@ async def run_task(
 
         _update_task(task.id, phase=Phase.DONE, completed_at=datetime.utcnow())
         await emit(Phase.DONE, "Task complete!", {"pr_url": pr_url, "verdict": review_result.verdict})
+        if _slack and _slack_ts:
+            try:
+                duration = (datetime.utcnow() - _task_start).total_seconds()
+                await _slack.on_task_complete(slack_channel, _slack_ts, pr_url, review_result.verdict, duration)
+            except Exception:
+                pass
 
         if issue_number is not None and repo_full_name is not None:
             try:
@@ -278,6 +309,11 @@ async def run_task(
         error_str = str(exc)[:500]
         _update_task(task.id, phase=Phase.FAILED, error=error_str)
         await emit(Phase.FAILED, f"Task failed: {exc}")
+        if _slack and _slack_ts:
+            try:
+                await _slack.on_task_failed(slack_channel, _slack_ts, error_str)
+            except Exception:
+                pass
         if issue_number is not None and repo_full_name is not None:
             try:
                 await post_comment(repo_full_name, issue_number, f"**Nimbus** failed: {error_str}")

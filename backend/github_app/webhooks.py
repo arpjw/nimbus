@@ -5,7 +5,13 @@ import logging
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from config import settings
-from github_app.handlers import handle_issue_comment, handle_issues, handle_pull_request
+from github_app.handlers import (
+    handle_issue_comment,
+    handle_issues,
+    handle_pull_request,
+    handle_pull_request_review,
+    handle_issue_comment_reaction,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +53,10 @@ async def github_webhook(
         await handle_issues(payload)
     elif x_github_event == "pull_request":
         await handle_pull_request(payload)
+    elif x_github_event == "pull_request_review":
+        await handle_pull_request_review(payload)
+    elif x_github_event == "reaction":
+        await handle_issue_comment_reaction(payload)
     else:
         logger.debug("Unhandled GitHub event: %s", x_github_event)
 

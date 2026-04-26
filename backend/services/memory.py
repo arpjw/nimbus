@@ -57,6 +57,69 @@ async def write_repo_memory(
     )
 
 
+async def list_repo_memory(repo_id: str) -> list[dict]:
+    try:
+        collection = _vector_store._client.get_collection(name=f"repo_memory_{repo_id}")
+    except Exception:
+        return []
+
+    total = collection.count()
+    if total == 0:
+        return []
+
+    results = collection.get(include=["documents", "metadatas"])
+    return [
+        {"id": entry_id, "text": text, "metadata": meta}
+        for entry_id, text, meta in zip(
+            results["ids"],
+            results["documents"],
+            results["metadatas"],
+        )
+    ]
+
+
+async def delete_repo_memory(repo_id: str, memory_id: str) -> bool:
+    try:
+        collection = _vector_store._client.get_collection(name=f"repo_memory_{repo_id}")
+    except Exception:
+        return False
+
+    result = collection.get(ids=[memory_id], include=["documents"])
+    if not result["ids"]:
+        return False
+
+    collection.delete(ids=[memory_id])
+    return True
+
+
+async def add_manual_repo_memory(repo_id: str, text: str, label: str) -> dict:
+    embeddings = await _embedding_service.embed_documents([text])
+    memory_id = str(uuid.uuid4())
+    ts = datetime.now(timezone.utc).isoformat()
+
+    collection = _vector_store._client.get_or_create_collection(
+        name=f"repo_memory_{repo_id}",
+        metadata={"hnsw:space": "cosine"},
+    )
+    collection.upsert(
+        ids=[memory_id],
+        embeddings=embeddings,
+        documents=[text],
+        metadatas=[{
+            "repo_id": repo_id,
+            "label": label,
+            "task_description": label[:120],
+            "timestamp": ts,
+        }],
+    )
+
+    return {
+        "id": memory_id,
+        "text": text,
+        "metadata": {"repo_id": repo_id, "label": label, "timestamp": ts},
+    }
+
+
 async def read_repo_memory(
     repo_id: str,
     query: str,

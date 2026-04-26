@@ -53,6 +53,7 @@ class TaskResponse(BaseModel):
     pr_url: Optional[str]
     error: Optional[str]
     plan: Optional[str]
+    repo_full_name: Optional[str]
     created_at: datetime
     updated_at: datetime
     completed_at: Optional[datetime]

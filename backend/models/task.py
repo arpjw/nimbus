@@ -63,3 +63,15 @@ class Task(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = None
+
+
+class ChannelRepoMap(SQLModel, table=True):
+    channel_id: str = Field(primary_key=True)
+    repo_url: str
+    workspace_id: str
+
+
+class LinearTeamRepoMap(SQLModel, table=True):
+    linear_team_id: str = Field(primary_key=True)
+    github_repo_url: str
+    workspace_id: str

@@ -38,11 +38,14 @@ async def generate_key(body: GenerateKeyRequest, session: Session = Depends(get_
 
 @router.get("/me")
 async def get_me(api_key: ApiKey = Depends(require_api_key)):
+    from config import settings
     return {
         "id": api_key.id,
         "name": api_key.name,
+        "owner_email": api_key.owner_email,
         "tier": api_key.tier,
         "task_count_month": api_key.task_count_month,
+        "monthly_limit": settings.free_tier_monthly_limit if api_key.tier == "free" else None,
         "last_used_at": api_key.last_used_at,
     }
 

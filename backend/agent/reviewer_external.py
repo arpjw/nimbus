@@ -2,11 +2,13 @@ import httpx
 import anthropic
 
 from config import settings
+from services.review_rules import ReviewRulesService
 
 _GITHUB_API = "https://api.github.com"
 _client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+_rules_service = ReviewRulesService()
 
-_SYSTEM_PROMPT = (
+_BASE_SYSTEM_PROMPT = (
     "You are a senior engineer performing a thorough code review.\n"
     "Review this PR diff and produce structured feedback covering:\n"
     "correctness, edge cases, performance implications, security concerns,\n"
@@ -21,6 +23,16 @@ _SYSTEM_PROMPT = (
 )
 
 
+async def _build_system_prompt(repo_id: str | None) -> str:
+    if not repo_id:
+        return _BASE_SYSTEM_PROMPT
+    rules = await _rules_service.get_active_rules(repo_id)
+    if not rules:
+        return _BASE_SYSTEM_PROMPT
+    rules_section = "Repo-specific rules:\n" + "\n".join(f"- {r}" for r in rules)
+    return f"{rules_section}\n\n{_BASE_SYSTEM_PROMPT}"
+
+
 def _parse_pr_url(pr_url: str) -> tuple[str, int]:
     parts = pr_url.rstrip("/").split("/")
     repo_full = f"{parts[-4]}/{parts[-3]}"
@@ -28,7 +40,7 @@ def _parse_pr_url(pr_url: str) -> tuple[str, int]:
     return repo_full, number
 
 
-async def review_pr(pr_url: str, github_token: str) -> str:
+async def review_pr(pr_url: str, github_token: str, repo_id: str | None = None) -> str:
     repo_full, number = _parse_pr_url(pr_url)
 
     json_headers = {
@@ -63,10 +75,12 @@ async def review_pr(pr_url: str, github_token: str) -> str:
 
     user_content = f"PR: {title}\nAuthor: {author}\nDescription: {body}\n\nDiff:\n{diff}"
 
+    system_prompt = await _build_system_prompt(repo_id)
+
     response = await _client.messages.create(
         model=settings.reviewer_model,
         max_tokens=4096,
-        system=_SYSTEM_PROMPT,
+        system=system_prompt,
         messages=[{"role": "user", "content": user_content}],
     )
 

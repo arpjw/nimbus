@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     ws_ping_interval: int = 20
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    slack_bot_token: str = ""
+    slack_signing_secret: str = ""
+    slack_client_id: str = ""
+    slack_client_secret: str = ""
+    app_base_url: str = "https://api.get-nimbus.com"
+
+    linear_api_key: str = ""
+    linear_webhook_secret: str = ""
+
     @property
     def workspace_path(self) -> Path:
         p = Path(self.workspace_base_dir)
