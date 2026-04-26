@@ -61,7 +61,7 @@ function Terminal() {
     <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, overflow: "hidden", background: "#0c0c0c" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
         {[0,1,2].map(i => <div key={i} style={{ width: 11, height: 11, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />)}
-        <span style={{ marginLeft: 10, fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.2)" }}>nimbus — zsh</span>
+        <span style={{ marginLeft: 10, fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.2)" }}>nimbus · zsh</span>
       </div>
       <div style={{ padding: "22px 28px", fontFamily: mono, fontSize: 13, lineHeight: 1.75, minHeight: 360 }}>
         {LINES.map((l, i) => vis.includes(i) && (
@@ -124,7 +124,7 @@ function MemoryDemo() {
     { k: "convention", v: "Uses Zod for all request validation. Never Joi." },
     { k: "testing",    v: "pytest only. Fixtures in conftest.py. No unittest." },
     { k: "auth",       v: "JWT + Redis refresh tokens, migrated in PR #47." },
-    { k: "patterns",   v: "Functional middleware — avoid class-based handlers." },
+    { k: "patterns",   v: "Prefers functional middleware over class-based handlers." },
   ];
   return (
     <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden", background: "#0c0c0c" }}>
@@ -144,7 +144,7 @@ function MemoryDemo() {
 function SlackDemo() {
   return (
     <div style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, overflow: "hidden", background: "#0c0c0c" }}>
-      <WinBar title="Slack — #engineering" />
+      <WinBar title="Slack · #engineering" />
       <div style={{ padding: "18px 22px", display: "flex", flexDirection: "column", gap: 16, fontFamily: mono, fontSize: 12 }}>
         <div style={{ display: "flex", gap: 10 }}>
           <div style={{ width: 30, height: 30, borderRadius: 6, background: "rgba(106,171,122,0.1)", border: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -233,7 +233,7 @@ export default function Page() {
               <em style={{ fontStyle: "italic" }}>stratified.</em>
             </h1>
             <p style={{ fontFamily: sans, fontSize: 16, color: C.muted, lineHeight: 1.65, marginBottom: 32 }}>
-              Nimbus plans, implements, and reviews code against real repositories — entirely on its own. From task description to merged PR.
+              Nimbus plans, implements, and reviews code against real repositories entirely on its own. From task description to merged PR.
             </p>
             <a href="/download" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.bg, background: C.text, padding: "12px 28px", borderRadius: 999, textDecoration: "none" }}>
               Get started free ↓
@@ -280,7 +280,7 @@ export default function Page() {
               <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden", background: "#0d0d0d", display: "flex", flexDirection: "column", height: "100%" }}>
                 <div style={{ background: "#0a0a0a", padding: "20px 18px 0", minHeight: 240, overflow: "hidden" }}>
                   <div style={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
-                    <WinBar title="nimbus — zsh" />
+                    <WinBar title="nimbus · zsh" />
                     <div style={{ padding: "14px 16px", fontFamily: mono, fontSize: 11, lineHeight: 1.8 }}>
                       <div style={{ color: C.gold, fontSize: 10, marginBottom: 6, lineHeight: 1.4 }}>
                         {"  ██╗   ██╗██╗███╗   ███╗"}<br />
@@ -359,7 +359,7 @@ export default function Page() {
                         { task: "migrate auth to JWT",          status: "done",    time: "2m ago" },
                         { task: "add rate limiting to /upload", status: "done",    time: "18m ago" },
                         { task: "generate integration tests",   status: "running", time: "now" },
-                        { task: "security audit — OWASP",       status: "queued",  time: "—" },
+                        { task: "OWASP security audit",          status: "queued",  time: "..." },
                       ] as { task: string; status: string; time: string }[]).map((t, i) => (
                         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", borderRadius: 5, marginBottom: 3, background: t.status === "running" ? "rgba(196,169,106,0.05)" : "transparent", border: t.status === "running" ? "1px solid rgba(196,169,106,0.1)" : "1px solid transparent" }}>
                           <div style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, background: t.status === "done" ? C.green : t.status === "running" ? C.gold : "rgba(255,255,255,0.1)" }} />
@@ -460,7 +460,7 @@ export default function Page() {
             {([
               { h: "Use the best model for every task", b: "Claude Opus for planning, Claude Sonnet for implementation. Auto mode picks the right model per phase.", l: "Explore models" },
               { h: "Complete codebase understanding", b: "voyage-code-2 embeddings fused with BM25 via RRF. AST-aware chunking. Multi-repo workspace support.", l: "Learn about retrieval" },
-              { h: "Develop enduring software", b: "Self-improving reviewer learns from PR feedback. 20 built-in agents — security, testing, docs, performance. MIT licensed.", l: "Explore agents" },
+              { h: "Develop enduring software", b: "Self-improving reviewer learns from PR feedback. 20 built-in agents for security, testing, docs, and performance. MIT licensed.", l: "Explore agents" },
             ] as { h: string; b: string; l: string }[]).map((card, i) => (
               <FadeUp key={i} delay={i * 60}>
                 <div style={{ background: C.bg, padding: "28px" }}>
