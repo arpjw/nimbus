@@ -29,6 +29,7 @@ from cli.renderer import (
     render_result,
     render_verify,
 )
+from cli.architecture_induction import induce_architecture, facts_to_prompt, FACTS_KEY
 from services.chunker import chunk_file
 from services.embedding import EmbeddingService
 
@@ -80,6 +81,7 @@ class LocalExecutor:
         self.collection_name = f"local_{self.repo_name.replace('/', '_')}"
         self.chroma = chromadb.PersistentClient(path=str(CHROMA_DIR))
         self.last_commit_sha: Optional[str] = None
+        self.architecture_facts: dict = {}
 
     def _detect_repo_name(self) -> str:
         try:
@@ -131,6 +133,21 @@ class LocalExecutor:
                             count += len(chunks)
                     except Exception:
                         continue
+            try:
+                existing = collection.get(ids=[FACTS_KEY])
+                if existing and existing.get("documents"):
+                    self.architecture_facts = json.loads(existing["documents"][0])
+                else:
+                    self.architecture_facts = await induce_architecture(self.repo_path, collection)
+                    if self.architecture_facts:
+                        collection.upsert(
+                            ids=[FACTS_KEY],
+                            documents=[json.dumps(self.architecture_facts)],
+                            metadatas=[{"type": "architecture_facts"}],
+                            embeddings=[[0.0] * 1024]
+                        )
+            except Exception:
+                pass
             return count
         except Exception as e:
             render_error(f"Indexing failed: {e}")
@@ -150,8 +167,10 @@ class LocalExecutor:
         render_phase("planning")
         context_chunks, chunk_count = await self.retrieve_context(task.description)
 
+        arch_context = facts_to_prompt(self.architecture_facts)
         system = f"""You are a senior software engineer planning changes to a real codebase.
 Repo: {task.repo_name}
+{arch_context}
 {task.skill_prompt}
 
 Retrieved context:
