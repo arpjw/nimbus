@@ -9,9 +9,11 @@ from api.routes.repos import ws_router, repo_router
 from api.routes.slack import router as slack_router
 from api.routes.linear import router as linear_api_router
 from api.routes.automations import router as automations_router
+from api.routes.skills import router as skills_router
 from github_app.webhooks import router as github_router
 from linear_app.webhooks import linear_router
 from services.automation_engine import AutomationEngine
+from services.skills import SkillsService
 
 app = FastAPI(title="Nimbus API", version="0.1.0", docs_url="/docs")
 
@@ -27,6 +29,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     init_db()
+    SkillsService().seed_builtins()
     AutomationEngine().schedule_all()
 
 
@@ -47,3 +50,4 @@ app.include_router(github_router)
 app.include_router(linear_api_router)
 app.include_router(linear_router)
 app.include_router(automations_router)
+app.include_router(skills_router)

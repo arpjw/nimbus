@@ -43,12 +43,15 @@ class NimbusClient:
         description: str,
         issue_number: int | None = None,
         repo_full_name: str | None = None,
+        skill: str | None = None,
     ) -> dict:
         payload: dict = {"workspace_id": workspace_id, "repo_id": repo_id, "description": description}
         if issue_number is not None:
             payload["issue_number"] = issue_number
         if repo_full_name is not None:
             payload["repo_full_name"] = repo_full_name
+        if skill is not None:
+            payload["skill"] = skill
         async with httpx.AsyncClient(headers=self._headers) as http:
             resp = await http.post(f"{self.base_url}/tasks/", json=payload)
             resp.raise_for_status()
@@ -89,6 +92,21 @@ class NimbusClient:
         async with websockets.connect(uri, extra_headers=extra_headers) as ws:
             async for raw in ws:
                 yield json.loads(raw)
+
+    async def list_skills(self) -> list[dict]:
+        async with httpx.AsyncClient(headers=self._headers) as http:
+            resp = await http.get(f"{self.base_url}/skills/")
+            resp.raise_for_status()
+            return resp.json()
+
+    async def create_skill(self, name: str, description: str, system_prompt_addition: str) -> dict:
+        async with httpx.AsyncClient(headers=self._headers) as http:
+            resp = await http.post(
+                f"{self.base_url}/skills/",
+                json={"name": name, "description": description, "system_prompt_addition": system_prompt_addition},
+            )
+            resp.raise_for_status()
+            return resp.json()
 
     async def generate_tests_pr(self, repo_id: str, file_path: str) -> dict:
         async with httpx.AsyncClient(headers=self._headers, timeout=120.0) as http:

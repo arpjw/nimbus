@@ -357,7 +357,7 @@ async def _run(args: argparse.Namespace) -> int:
         repo = await client.get_or_create_repo(workspace["id"], remote_url, repo_name)
         print(f"repo       {repo['name']}  ({repo['id'][:8]}...)")
 
-        task = await client.create_task(workspace["id"], repo["id"], args.task)
+        task = await client.create_task(workspace["id"], repo["id"], args.task, skill=args.skill)
         desc_preview = task["description"][:60]
         print(f"task       {task['id'][:8]}...  {desc_preview}")
 
@@ -467,6 +467,37 @@ async def _run(args: argparse.Namespace) -> int:
     return 0
 
 
+async def _skills(args: argparse.Namespace) -> int:
+    api_key = args.api_key or os.environ.get("NIMBUS_API_KEY")
+    client = NimbusClient(args.backend, api_key=api_key)
+
+    if args.skills_command == "list":
+        try:
+            skills = await client.list_skills()
+        except Exception as exc:
+            print(Fore.RED + f"Error: {exc}", file=sys.stderr)
+            return 1
+        if not skills:
+            print("No skills available.")
+            return 0
+        for skill in skills:
+            tag = Style.DIM + "(built-in)" + Style.RESET_ALL if not skill.get("owner_key_id") else ""
+            print(f"  {Fore.CYAN + Style.BRIGHT + skill['name'] + Style.RESET_ALL}  {tag}")
+            print(f"    {skill['description']}")
+        return 0
+
+    if args.skills_command == "create":
+        try:
+            skill = await client.create_skill(args.name, args.description, args.prompt)
+        except Exception as exc:
+            print(Fore.RED + f"Error: {exc}", file=sys.stderr)
+            return 1
+        print(Fore.GREEN + f"Created skill: {skill['name']}")
+        return 0
+
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="nimbus",
@@ -492,6 +523,12 @@ def main():
         default=None,
         metavar="KEY",
         help="Nimbus API key (defaults to NIMBUS_API_KEY env var)",
+    )
+    run_p.add_argument(
+        "--skill",
+        default=None,
+        metavar="SKILL",
+        help="Apply a named skill to this task (e.g. add-tests, add-logging)",
     )
 
     review_p = sub.add_parser("review", help="Review a GitHub PR diff")
@@ -566,6 +603,28 @@ def main():
         help="Nimbus API key (defaults to NIMBUS_API_KEY env var)",
     )
 
+    skills_p = sub.add_parser("skills", help="Manage skills")
+    skills_p.add_argument(
+        "--backend",
+        default="http://localhost:8000",
+        metavar="URL",
+        help="Nimbus backend URL (default: http://localhost:8000)",
+    )
+    skills_p.add_argument(
+        "--api-key",
+        default=None,
+        metavar="KEY",
+        help="Nimbus API key (defaults to NIMBUS_API_KEY env var)",
+    )
+    skills_sub = skills_p.add_subparsers(dest="skills_command", required=True)
+
+    skills_sub.add_parser("list", help="List available skills")
+
+    skills_create_p = skills_sub.add_parser("create", help="Create a custom skill")
+    skills_create_p.add_argument("--name", required=True, metavar="NAME", help="Skill name")
+    skills_create_p.add_argument("--description", required=True, metavar="DESC", help="Short description")
+    skills_create_p.add_argument("--prompt", required=True, metavar="PROMPT", help="System prompt addition")
+
     args = parser.parse_args()
     if args.command == "review":
         sys.exit(asyncio.run(_review(args)))
@@ -573,6 +632,8 @@ def main():
         sys.exit(asyncio.run(_issue(args)))
     if args.command == "test":
         sys.exit(asyncio.run(_test(args)))
+    if args.command == "skills":
+        sys.exit(asyncio.run(_skills(args)))
     sys.exit(asyncio.run(_run(args)))
 
 

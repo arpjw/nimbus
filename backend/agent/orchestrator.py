@@ -114,6 +114,8 @@ async def run_task(
     issue_number: int | None = None,
     repo_full_name: str | None = None,
     slack_channel: str | None = None,
+    skill_name: str | None = None,
+    api_key_id: str | None = None,
 ) -> None:
     emit = lambda phase, msg, data=None: _emit_event(queue, task.id, phase, msg, data)
 
@@ -163,7 +165,7 @@ async def run_task(
         _update_task(task.id, phase=Phase.PLANNING)
         file_tree = await _build_file_tree(workspace)
         memories = await read_repo_memory(repo.id, task.description)
-        plan = await generate_plan(task.description, [repo.id], _rag_service, file_tree, memories=memories)
+        plan = await generate_plan(task.description, [repo.id], _rag_service, file_tree, memories=memories, skill_name=skill_name, api_key_id=api_key_id)
         _update_task(task.id, plan=plan.raw)
         await emit(Phase.PLANNING, f"Plan: {plan.summary}", {"changes": len(plan.changes)})
         await _notify("plan", f"Plan: {plan.summary} ({len(plan.changes)} changes)")

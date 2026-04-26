@@ -40,6 +40,7 @@ class TaskCreate(BaseModel):
     description: str
     issue_number: Optional[int] = None
     repo_full_name: Optional[str] = None
+    skill: Optional[str] = None
 
 
 class TaskResponse(BaseModel):

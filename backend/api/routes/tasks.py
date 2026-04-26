@@ -72,7 +72,7 @@ async def create_task(
         session.commit()
 
     queue = get_or_create_queue(task.id)
-    asyncio.create_task(run_task(task, repo, queue, issue_number=body.issue_number, repo_full_name=body.repo_full_name))
+    asyncio.create_task(run_task(task, repo, queue, issue_number=body.issue_number, repo_full_name=body.repo_full_name, skill_name=body.skill, api_key_id=api_key.id))
     asyncio.create_task(pump_queue_to_ws(task.id))
 
     return task

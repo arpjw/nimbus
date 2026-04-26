@@ -64,7 +64,16 @@ async def generate_plan(
     rag_service: RAGService,
     repo_file_tree: str,
     memories: list[dict] | None = None,
+    skill_name: str | None = None,
+    api_key_id: str | None = None,
 ) -> Plan:
+    system = PLANNER_SYSTEM
+    if skill_name and api_key_id:
+        from services.skills import SkillsService
+        skill = SkillsService().get_skill(skill_name, api_key_id)
+        if skill:
+            system = skill.system_prompt_addition + "\n\n" + PLANNER_SYSTEM
+
     chunks: list[RetrievedChunk] = await rag_service.query(repo_ids, task_description, top_k=25)
 
     context_blocks = []
@@ -97,7 +106,7 @@ async def generate_plan(
     response = await client.messages.create(
         model=settings.planner_model,
         max_tokens=4096,
-        system=PLANNER_SYSTEM,
+        system=system,
         messages=[{"role": "user", "content": user_message}],
     )
 
