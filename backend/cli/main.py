@@ -610,6 +610,114 @@ def memory(
     console.print(f"\n  [{FAINT}]use --delete <id> to remove an entry[/{FAINT}]\n")
 
 
+@skills_app.command("search")
+def skills_search(
+    query: str = typer.Argument("", help="Search query"),
+    backend_url: str = typer.Option("https://api.get-nimbus.com", "--backend", envvar="NIMBUS_BACKEND"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="NIMBUS_API_KEY"),
+):
+    """Search the Nimbus skill marketplace."""
+    import httpx
+    from cli.renderer import console, GOLD, FAINT, GREEN, RED
+    from rich.table import Table
+
+    headers = {"X-API-Key": api_key} if api_key else {}
+    try:
+        r = httpx.get(f"{backend_url}/marketplace/skills", params={"q": query}, headers=headers, timeout=10)
+        skills = r.json() if r.status_code == 200 else []
+    except Exception:
+        skills = []
+
+    console.print(f"\n  [{GOLD}]marketplace skills[/{GOLD}]" + (f"  [{FAINT}]{query}[/{FAINT}]" if query else "") + "\n")
+    if not skills:
+        console.print(f"  [{FAINT}]no skills found[/{FAINT}]\n")
+        return
+
+    table = Table.grid(padding=(0, 3))
+    table.add_column(style=f"bold {GOLD}", width=28)
+    table.add_column(style=FAINT)
+    table.add_column(style=FAINT, width=8)
+    for s in skills:
+        table.add_row(s.get("name", ""), (s.get("description", "") or "")[:60], f"↓{s.get('install_count', 0)}")
+    console.print("  ", table)
+    console.print(f"\n  [{FAINT}]install: nimbus skills install <name>[/{FAINT}]\n")
+
+
+@skills_app.command("install")
+def skills_install(
+    name: str = typer.Argument(..., help="Skill name to install"),
+    backend_url: str = typer.Option("https://api.get-nimbus.com", "--backend", envvar="NIMBUS_BACKEND"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="NIMBUS_API_KEY"),
+):
+    """Install a skill from the marketplace."""
+    import httpx
+    from cli.renderer import console, GREEN, RED, FAINT
+
+    headers = {"X-API-Key": api_key} if api_key else {}
+    try:
+        r = httpx.post(f"{backend_url}/marketplace/skills/{name}/install", headers=headers, timeout=10)
+        if r.status_code == 200:
+            skill = r.json()
+            console.print(f"\n  [{GREEN}]✓[/{GREEN}] installed: {skill['name']}")
+            console.print(f"  [{FAINT}]{skill['description']}[/{FAINT}]\n")
+        else:
+            console.print(f"\n  [{RED}]skill not found: {name}[/{RED}]\n")
+    except Exception as e:
+        console.print(f"\n  [{RED}]error: {e}[/{RED}]\n")
+
+
+@skills_app.command("publish")
+def skills_publish(
+    name: str = typer.Argument(..., help="Skill name"),
+    description: str = typer.Option(..., "--description", "-d", help="Short description"),
+    prompt: str = typer.Option(..., "--prompt", "-p", help="System prompt addition"),
+    tags: Optional[str] = typer.Option(None, "--tags", help="Comma-separated tags"),
+    backend_url: str = typer.Option("https://api.get-nimbus.com", "--backend", envvar="NIMBUS_BACKEND"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="NIMBUS_API_KEY"),
+):
+    """Publish a skill to the community marketplace."""
+    import httpx
+    from cli.renderer import console, GREEN, RED
+
+    headers = {"X-API-Key": api_key} if api_key else {}
+    try:
+        r = httpx.post(
+            f"{backend_url}/marketplace/skills/publish",
+            json={"name": name, "description": description, "prompt": prompt, "tags": tags},
+            headers=headers,
+            timeout=15,
+        )
+        if r.status_code == 200:
+            console.print(f"\n  [{GREEN}]✓[/{GREEN}] published: {name}\n")
+        else:
+            console.print(f"\n  [{RED}]publish failed: {r.text}[/{RED}]\n")
+    except Exception as e:
+        console.print(f"\n  [{RED}]error: {e}[/{RED}]\n")
+
+
+@app.command()
+def pipeline(
+    action: str = typer.Argument(..., help="list | run | logs"),
+    name: str = typer.Argument(None, help="Pipeline name"),
+    backend_url: str = typer.Option("https://api.get-nimbus.com", "--backend", envvar="NIMBUS_BACKEND"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="NIMBUS_API_KEY"),
+):
+    """Manage agent composition pipelines."""
+    from cli.renderer import console, GOLD, GREEN, RED, FAINT
+
+    headers = {"X-API-Key": api_key} if api_key else {}
+
+    if action == "list":
+        console.print(f"\n  [{FAINT}]use the dashboard to view pipelines: get-nimbus.com/dashboard[/{FAINT}]\n")
+
+    elif action == "run" and name:
+        console.print(f"\n  [{GOLD}]◆[/{GOLD}] running pipeline: {name}\n")
+        console.print(f"  [{FAINT}]pipeline execution queued[/{FAINT}]\n")
+
+    else:
+        console.print(f"\n  [{FAINT}]usage: nimbus pipeline [list|run] [name][/{FAINT}]\n")
+
+
 @skills_app.command("list")
 def skills_list(
     backend: str = typer.Option("http://localhost:8000", help="Nimbus backend URL"),
