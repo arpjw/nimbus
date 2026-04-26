@@ -1,3 +1,4 @@
+import difflib
 import json
 import os
 import subprocess
@@ -9,11 +10,13 @@ from typing import Optional
 
 import anthropic
 import chromadb
+from rich.text import Text
 
 from cli.renderer import (
     FAINT,
     GOLD,
     GREEN,
+    RED,
     console,
     prompt_approval,
     render_confidence,
@@ -33,6 +36,29 @@ SESSIONS_DIR = Path.home() / ".nimbus" / "sessions"
 
 anthropic_client = anthropic.AsyncAnthropic()
 _embedder = EmbeddingService()
+
+
+def _stream_diff_live(old: str, new: str, path: str):
+    diff_lines = list(difflib.unified_diff(
+        old.splitlines(keepends=True),
+        new.splitlines(keepends=True),
+        fromfile=f"a/{path}",
+        tofile=f"b/{path}",
+        lineterm=""
+    ))
+    if not diff_lines:
+        return
+    text = Text()
+    for line in diff_lines[:40]:
+        if line.startswith("+") and not line.startswith("+++"):
+            text.append(line + "\n", style="bold #6aab7a")
+        elif line.startswith("-") and not line.startswith("---"):
+            text.append(line + "\n", style="bold #e05c5c")
+        elif line.startswith("@@"):
+            text.append(line + "\n", style="#c4a96a")
+        else:
+            text.append(line + "\n", style="rgb(80,75,60)")
+    console.print(text)
 
 
 @dataclass
@@ -218,6 +244,7 @@ End with: FILE_CONTENT_END"""
             added = new_content.count("\n") - old_content.count("\n") if old_content else new_content.count("\n")
             removed = max(0, -added)
             render_file_event("write", change["path"], max(0, added), max(0, removed))
+            _stream_diff_live(old_content, new_content, change["path"])
 
         return file_snapshots
 
@@ -278,7 +305,18 @@ End with: FILE_CONTENT_END"""
             return False
 
     async def run_task(self, description: str, skill_prompt: str = "") -> bool:
+        from cli.config import load_config
+        from cli import sounds as sfx
+        from cli.session_recorder import SessionRecorder
+
         start = time.time()
+        config = load_config()
+        sound_on = config.get("local", {}).get("sound", False)
+        recorder = SessionRecorder(self.repo_name, description)
+
+        if sound_on:
+            sfx.play_start()
+
         task = LocalTask(
             description=description,
             repo_path=self.repo_path,
@@ -287,12 +325,27 @@ End with: FILE_CONTENT_END"""
             skill_prompt=skill_prompt
         )
 
+        recorder.record("phase", {"phase": "planning"})
         plan = await self.plan(task)
         if not plan:
+            recorder.record("error", {"message": "planning cancelled"})
+            recorder.save()
             return False
 
+        recorder.record("phase", {"phase": "implementing"})
+        for change in plan.get("changes", []):
+            recorder.record("file_write", {"path": change.get("path", "")})
+
         snapshots = await self.implement(task, plan)
-        self.verify()
+
+        recorder.record("phase", {"phase": "verifying"})
+        verify_results = self.verify()
+
+        all_passed = all(verify_results.values()) if verify_results else True
+        if sound_on and all_passed:
+            sfx.play_success()
+
+        recorder.record("verify", {"results": verify_results})
 
         approval = prompt_approval("Commit?", "y/n/d to view diff")
         if approval == "d":
@@ -307,17 +360,32 @@ End with: FILE_CONTENT_END"""
                 elif fpath.exists():
                     fpath.unlink()
             console.print(f"  [{FAINT}]changes discarded[/{FAINT}]")
+            recorder.record("error", {"message": "changes discarded by user"})
+            recorder.save()
             return False
 
         branch = self.commit(description, plan)
         if not branch:
+            if sound_on:
+                sfx.play_failed()
+            recorder.record("error", {"message": "commit failed"})
+            recorder.save()
             return False
+
+        recorder.record("commit", {"branch": branch})
 
         push = prompt_approval("Push and open PR?", "y/n")
         pr_url = None
         if push == "y":
             subprocess.run(["git", "-C", str(self.repo_path), "push", "-u", "origin", branch], capture_output=True)
             pr_url = f"https://github.com/{self.repo_name}/compare/{branch}"
+            if sound_on:
+                sfx.play_complete()
+
+        if sound_on and push != "y":
+            sfx.play_complete()
+
+        recorder.save(pr_url)
 
         duration = time.time() - start
         render_result(pr_url or f"branch: {branch}", duration, branch)

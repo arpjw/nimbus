@@ -7,11 +7,12 @@ from cli.local_executor import LocalExecutor
 
 
 class NimbusREPL:
-    def __init__(self, repo_path: Path = None):
+    def __init__(self, repo_path: Path = None, voice_mode: bool = False):
         self.repo_path = repo_path or Path.cwd()
         self.executor = LocalExecutor(self.repo_path)
         self.history = []
         self.running = True
+        self.voice_mode = voice_mode
 
     def _setup_readline(self):
         readline.set_history_length(500)
@@ -34,7 +35,11 @@ class NimbusREPL:
         while self.running:
             try:
                 console.print(f"  [{GOLD}]nimbus[/{GOLD}] [{FAINT}]›[/{FAINT}] ", end="")
-                user_input = input().strip()
+                if self.voice_mode:
+                    from cli.voice import record_and_transcribe
+                    user_input = record_and_transcribe()
+                else:
+                    user_input = input().strip()
             except (EOFError, KeyboardInterrupt):
                 console.print()
                 break
@@ -96,15 +101,44 @@ class NimbusREPL:
         import anthropic
         from rich import box
         from rich.panel import Panel
-        full_path = self.executor.repo_path / file_path
+
+        line_range = None
+        path_part = file_path
+        if ":" in file_path:
+            path_part, range_str = file_path.rsplit(":", 1)
+            if "-" in range_str:
+                try:
+                    start_line, end_line = range_str.split("-")
+                    line_range = (int(start_line), int(end_line))
+                except ValueError:
+                    pass
+
+        full_path = self.executor.repo_path / path_part
         if not full_path.exists():
-            render_error(f"File not found: {file_path}")
+            render_error(f"File not found: {path_part}")
             return
+
         content = full_path.read_text(errors="ignore")
+        title = path_part
+        if line_range:
+            lines = content.splitlines()
+            content = "\n".join(lines[line_range[0] - 1:line_range[1]])
+            title = f"{path_part}:{line_range[0]}-{line_range[1]}"
+
         client = anthropic.AsyncAnthropic()
         response = await client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1024,
-            messages=[{"role": "user", "content": f"Explain this file concisely for a senior developer. Cover: purpose, key functions, patterns to watch out for.\n\nFile: {file_path}\n\n{content[:4000]}"}]
+            messages=[{"role": "user", "content": f"""Explain this code for a senior developer. Be specific, not generic.
+
+Cover:
+- Purpose (one sentence)
+- Key functions/classes and what they actually do
+- Non-obvious patterns or design decisions
+- Anything to watch out for (async gotchas, side effects, dependencies)
+
+File: {title}
+
+{content[:4000]}"""}]
         )
-        console.print(Panel(response.content[0].text, title=f"[bold]{file_path}[/bold]", border_style=FAINT, box=box.ROUNDED))
+        console.print(Panel(response.content[0].text, title=f"[bold]{title}[/bold]", border_style=FAINT, box=box.ROUNDED))
