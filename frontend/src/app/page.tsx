@@ -1,6 +1,5 @@
 "use client";
-import { useEffect, useState, useRef, ReactNode, Suspense } from "react";
-import NavAuth from "@/components/NavAuth";
+import { useEffect, useState, useRef, ReactNode } from "react";
 
 const serif = "var(--font-serif,'Georgia',serif)";
 const sans  = "var(--font-sans,system-ui,sans-serif)";
@@ -186,45 +185,11 @@ function Stage({ children }: { children: ReactNode }) {
   );
 }
 
-function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-  return (
-    <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, height: 56, borderBottom: `1px solid ${scrolled ? "rgba(255,255,255,0.06)" : "transparent"}`, background: scrolled ? "rgba(10,10,10,0.85)" : "transparent", backdropFilter: scrolled ? "blur(16px)" : "none", transition: "all 0.3s ease" }}>
-      <div style={{ maxWidth: W, margin: "0 auto", padding: "0 28px", height: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 5, background: C.text, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ color: C.bg, fontWeight: 800, fontSize: 12, fontFamily: sans }}>N</span>
-            </div>
-            <span style={{ fontWeight: 400, fontSize: 17, fontStyle: "italic", color: C.text, fontFamily: serif }}>Nimbus</span>
-          </div>
-          <div style={{ display: "flex", gap: 32 }}>
-            {([["Product", "/#product"], ["Docs", "https://docs.get-nimbus.com"], ["GitHub", "https://github.com/arpjw/nimbus"], ["Download", "/download"]] as [string,string][]).map(([l, h]) => (
-              <a key={l} href={h} style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>{l}</a>
-            ))}
-          </div>
-        </div>
-        <Suspense fallback={
-          <a href="/login" style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>Sign in</a>
-        }>
-          <NavAuth />
-        </Suspense>
-      </div>
-    </nav>
-  );
-}
-
 const divider = { height: 1, background: "rgba(255,255,255,0.05)", maxWidth: W, margin: "0 auto" } as const;
 
 export default function Page() {
   return (
     <div style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: sans, overflowX: "hidden" }}>
-      <Navbar />
 
       {/* HERO */}
       <section style={{ paddingTop: 140, paddingBottom: 0, paddingLeft: 28, paddingRight: 28 }}>
@@ -255,12 +220,12 @@ export default function Page() {
               { name: "Linear",    slug: "linear" },
               { name: "Slack",     slug: "slack" },
               { name: "Railway",   slug: "railway" },
-              { name: "VS Code",   slug: "visualstudiocode" },
+              { name: "VS Code",   slug: "vscode" },
               { name: "PagerDuty", slug: "pagerduty" },
               { name: "Anthropic", slug: "anthropic" },
             ] as { name: string; slug: string }[]).map(({ name, slug }) => (
               <div key={name} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: 0.35 }}>
-                <img src={`https://cdn.simpleicons.org/${slug}/ffffff`} alt={name} width={22} height={22} />
+                <img src={`https://cdn.simpleicons.org/${slug}/ffffff`} alt={name} width={22} height={22} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                 <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.04em" }}>{name}</span>
               </div>
             ))}

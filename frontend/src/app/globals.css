@@ -76,6 +76,13 @@ body {
   z-index: 9999;
 }
 
+/* Nav scroll effect */
+#main-nav.nav-scrolled {
+  border-bottom-color: rgba(255,255,255,0.06) !important;
+  background: rgba(10,10,10,0.85) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
 /* Section divider */
 .section-divider {
   height: 1px;
