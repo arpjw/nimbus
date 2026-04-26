@@ -50,6 +50,11 @@ class NimbusREPL:
             self.history.append(user_input)
             await self.handle(user_input)
 
+    async def _init_executor(self):
+        if not hasattr(self.executor, '_indexed') or not self.executor._indexed:
+            await self.executor.index()
+            self.executor._indexed = True
+
     async def handle(self, inp: str):
         cmd = inp.lower().strip()
 
@@ -68,6 +73,14 @@ class NimbusREPL:
         elif cmd.startswith("explain "):
             file_path = inp[8:].strip()
             await self._explain(file_path)
+
+        elif cmd == "chat":
+            await self.do_chat()
+
+        elif cmd.startswith("search "):
+            query = inp[7:].strip()
+            if query:
+                await self._do_search(query)
 
         else:
             await self.executor.run_task(inp)
@@ -96,6 +109,114 @@ class NimbusREPL:
         console.print(f"  path    {self.executor.repo_path}")
         console.print(f"  index   [{GREEN}]ready[/{GREEN}]")
         console.print()
+
+    async def do_chat(self):
+        import anthropic
+        from rich.panel import Panel
+        from rich import box
+
+        client = anthropic.AsyncAnthropic()
+        history = []
+
+        console.print(f"\n  [{GOLD}]nimbus chat[/{GOLD}]  [{FAINT}]ask anything about your codebase · type exit to return[/{FAINT}]\n")
+
+        while True:
+            console.print(f"  [{GOLD}]you[/{GOLD}] [{FAINT}]›[/{FAINT}] ", end="")
+            try:
+                user_input = input().strip()
+            except (EOFError, KeyboardInterrupt):
+                break
+
+            if user_input.lower() in ("exit", "back", "quit", "q"):
+                console.print(f"\n  [{FAINT}]returning to nimbus ›[/{FAINT}]\n")
+                break
+
+            if not user_input:
+                continue
+
+            context_chunks, chunk_count = await self.executor.retrieve_context(user_input, top_k=10)
+            context_text = "\n\n".join(context_chunks[:8])
+
+            history.append({"role": "user", "content": user_input})
+
+            system = f"""You are an expert software engineer answering questions about a specific codebase.
+
+Repo: {self.executor.repo_name}
+Branch: {self.executor.branch}
+
+Retrieved codebase context:
+{context_text}
+
+Answer accurately and specifically based on the context above.
+Always cite the specific file and line range when referencing code: [filename:line_start-line_end]
+Be concise but complete. If you don't know something from the context, say so clearly."""
+
+            response = await client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=1024,
+                system=system,
+                messages=history,
+            )
+
+            answer = response.content[0].text
+            history.append({"role": "assistant", "content": answer})
+
+            console.print()
+            console.print(Panel(
+                answer,
+                border_style=FAINT,
+                box=box.ROUNDED,
+                padding=(0, 1),
+            ))
+            console.print()
+
+    async def _do_search(self, query: str):
+        from services.embedding import EmbeddingService
+
+        try:
+            collection = self.executor.chroma.get_collection(self.executor.collection_name)
+        except Exception:
+            console.print(f"\n  [{FAINT}]codebase not indexed — run nimbus first[/{FAINT}]\n")
+            return
+
+        embedder = EmbeddingService()
+        embeddings = await embedder.embed_queries([query])
+
+        count = collection.count()
+        if count == 0:
+            console.print(f"\n  [{FAINT}]no results found[/{FAINT}]\n")
+            return
+
+        results = collection.query(
+            query_embeddings=embeddings,
+            n_results=min(8, count),
+            include=["documents", "metadatas", "distances"]
+        )
+
+        docs = results["documents"][0] if results["documents"] else []
+        metas = results["metadatas"][0] if results["metadatas"] else []
+        distances = results["distances"][0] if results["distances"] else []
+
+        if not docs:
+            console.print(f"\n  [{FAINT}]no results found[/{FAINT}]\n")
+            return
+
+        console.print(f"\n  [{GOLD}]search[/{GOLD}]  [{FAINT}]{query}[/{FAINT}]  [{FAINT}]{len(docs)} results[/{FAINT}]\n")
+
+        from pathlib import Path as _Path
+        for i, (doc, meta, dist) in enumerate(zip(docs, metas, distances)):
+            path = meta.get("path", "unknown")
+            try:
+                rel = str(_Path(path).relative_to(self.executor.repo_path))
+            except Exception:
+                rel = path
+            score = round(1 - dist, 2) if dist else 0
+            prefix = "├─" if i < len(docs) - 1 else "└─"
+            summary = doc.strip().split("\n")[0][:80] if doc else ""
+            console.print(f"  {prefix} [{GOLD}]{rel}[/{GOLD}]  [{FAINT}]score {score}[/{FAINT}]")
+            if summary:
+                console.print(f"     [{FAINT}]{summary}[/{FAINT}]")
+            console.print()
 
     async def _explain(self, file_path: str):
         import anthropic

@@ -125,6 +125,15 @@ def default(
 
 
 @app.command()
+def chat():
+    """Ask questions about your codebase conversationally."""
+    from cli.interactive import NimbusREPL
+    repl = NimbusREPL(Path.cwd())
+    asyncio.run(repl._init_executor())
+    asyncio.run(repl.do_chat())
+
+
+@app.command()
 def agents(
     category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category"),
     info: Optional[str] = typer.Option(None, "--info", help="Show full info for a named agent"),
