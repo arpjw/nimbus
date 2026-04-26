@@ -29,36 +29,32 @@ function FadeUp({ children, delay = 0 }: { children: ReactNode; delay?: number }
 }
 
 const LINES = [
-  { d: 0,    t: "$ nimbus",                                        c: C.text },
-  { d: 600,  t: "",                                                 c: "" },
-  { d: 700,  t: "  ██╗   ██╗██╗███╗   ███╗",                      c: C.gold },
-  { d: 750,  t: "  ╚██╗ ██╔╝██║████╗ ████║",                      c: C.gold },
-  { d: 800,  t: "   ╚████╔╝ ██║██╔████╔██║",                       c: C.gold },
-  { d: 900,  t: "",                                                 c: "" },
-  { d: 1000, t: "  autonomous software engineering · v1.2.0",      c: "rgba(255,255,255,0.2)" },
-  { d: 1100, t: "  repo    github.com/acme/api · 847 files ready", c: "rgba(255,255,255,0.2)" },
-  { d: 1300, t: "",                                                 c: "" },
-  { d: 1400, t: "  nimbus › run 'migrate auth to JWT'",            c: C.text },
-  { d: 2000, t: "",                                                 c: "" },
-  { d: 2100, t: "  confidence  ████████░░  92%  ·  low ambiguity", c: C.gold },
-  { d: 2700, t: "  Proceed with 3 changes? [y/N] y",               c: "rgba(255,255,255,0.5)" },
-  { d: 3300, t: "",                                                 c: "" },
-  { d: 3400, t: "  write  src/lib/jwt.ts                +42",      c: C.green },
-  { d: 3700, t: "  write  src/middleware/auth.ts        +18",      c: C.green },
-  { d: 4000, t: "  write  src/routes/login.ts           +9",       c: C.green },
-  { d: 4400, t: "",                                                 c: "" },
-  { d: 4500, t: "  tsc ✓   eslint ✓   47 tests pass",             c: "rgba(255,255,255,0.4)" },
-  { d: 5000, t: "  PR #47 opened  ↗  acme/api/pull/47",            c: C.text },
-  { d: 5500, t: "",                                                 c: "" },
-  { d: 5600, t: "  nimbus › search 'JWT validation'",              c: C.text },
-  { d: 6100, t: "  ├─ src/lib/jwt.ts              score 0.97",     c: C.muted },
-  { d: 6300, t: "  └─ src/middleware/auth.ts      score 0.91",     c: C.muted },
-  { d: 6600, t: "",                                                 c: "" },
-  { d: 6700, t: "  nimbus › chat",                                  c: C.text },
-  { d: 7000, t: "  you › how does the new JWT auth work?",         c: "rgba(255,255,255,0.5)" },
-  { d: 7500, t: "  JWT is issued in src/lib/jwt.ts:12 on login,",  c: C.muted },
-  { d: 7700, t: "  verified in middleware/auth.ts:18. 30 day TTL.", c: C.muted },
-  { d: 8000, t: "  done in 34.2s",                                  c: "rgba(255,255,255,0.25)" },
+  { d: 0,    t: "$ nimbus",                                         c: C.text },
+  { d: 600,  t: "",                                                  c: "" },
+  { d: 700,  t: "  NIMBUS  ·  autonomous software engineering",      c: C.gold },
+  { d: 900,  t: "  v1.2.0  ·  github.com/acme/api  ·  847 files",   c: "rgba(255,255,255,0.2)" },
+  { d: 1200, t: "",                                                   c: "" },
+  { d: 1300, t: "  nimbus › run 'migrate auth to JWT'",              c: C.text },
+  { d: 1900, t: "",                                                   c: "" },
+  { d: 2000, t: "  confidence  ████████░░  92%  ·  low ambiguity",   c: C.gold },
+  { d: 2600, t: "  Proceed with 3 changes? [y/N] y",                 c: "rgba(255,255,255,0.5)" },
+  { d: 3200, t: "",                                                   c: "" },
+  { d: 3300, t: "  write  src/lib/jwt.ts                +42",        c: C.green },
+  { d: 3600, t: "  write  src/middleware/auth.ts        +18",        c: C.green },
+  { d: 3900, t: "  write  src/routes/login.ts           +9",         c: C.green },
+  { d: 4300, t: "",                                                   c: "" },
+  { d: 4400, t: "  tsc ✓   eslint ✓   47 tests pass",               c: "rgba(255,255,255,0.4)" },
+  { d: 4900, t: "  PR #47 opened  ↗  acme/api/pull/47",              c: C.text },
+  { d: 5400, t: "",                                                   c: "" },
+  { d: 5500, t: "  nimbus › search 'JWT validation'",                c: C.text },
+  { d: 6000, t: "  ├─ src/lib/jwt.ts              score 0.97",       c: C.muted },
+  { d: 6200, t: "  └─ src/middleware/auth.ts      score 0.91",       c: C.muted },
+  { d: 6500, t: "",                                                   c: "" },
+  { d: 6600, t: "  nimbus › chat",                                   c: C.text },
+  { d: 6900, t: "  you › how does the new JWT auth work?",           c: "rgba(255,255,255,0.5)" },
+  { d: 7400, t: "  JWT issued at src/lib/jwt.ts:12 · 30 day TTL.",   c: C.muted },
+  { d: 7800, t: "  verified in middleware/auth.ts:18",               c: C.muted },
+  { d: 8100, t: "  done in 34.2s",                                   c: "rgba(255,255,255,0.25)" },
 ];
 
 function Terminal() {
@@ -263,10 +259,8 @@ export default function Page() {
                   <div style={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
                     <WinBar title="nimbus · zsh" />
                     <div style={{ padding: "14px 16px", fontFamily: mono, fontSize: 11, lineHeight: 1.8 }}>
-                      <div style={{ color: C.gold, fontSize: 10, marginBottom: 6, lineHeight: 1.4 }}>
-                        {"  ██╗   ██╗██╗███╗   ███╗"}<br />
-                        {"  ╚██╗ ██╔╝██║████╗ ████║"}<br />
-                        {"   ╚████╔╝ ██║██╔████╔██║"}
+                      <div style={{ color: C.gold, fontSize: 13, fontWeight: 700, letterSpacing: "0.15em", marginBottom: 8, fontFamily: mono }}>
+                        NIMBUS
                       </div>
                       <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 10, marginBottom: 8 }}>autonomous software engineering · v1.1.0</div>
                       <div style={{ color: "rgba(255,255,255,0.25)", fontSize: 10 }}>repo{"   "}github.com/acme/api</div>
