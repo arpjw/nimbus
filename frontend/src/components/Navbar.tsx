@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import NavAuth from "@/components/NavAuth";
 import NavScrollEffect from "@/components/NavScrollEffect";
+import NavMobile from "@/components/NavMobile";
 
 const serif = "var(--font-serif,'Georgia',serif)";
 const sans  = "var(--font-sans,system-ui,sans-serif)";
@@ -20,15 +21,20 @@ export default function Navbar() {
               </div>
               <span style={{ fontWeight: 400, fontSize: 17, fontStyle: "italic", color: C.text, fontFamily: serif }}>Nimbus</span>
             </div>
-            <div style={{ display: "flex", gap: 32 }}>
+            <div className="nav-desktop-links" style={{ display: "flex", gap: 32 }}>
               {([["Product", "/#product"], ["Docs", "https://docs.get-nimbus.com"], ["GitHub", "https://github.com/arpjw/nimbus"], ["Download", "/download"]] as [string, string][]).map(([l, h]) => (
                 <a key={l} href={h} style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>{l}</a>
               ))}
             </div>
           </div>
-          <Suspense fallback={<a href="/login" style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>Sign in</a>}>
-            <NavAuth />
-          </Suspense>
+          <div className="nav-auth-desktop">
+            <Suspense fallback={<a href="/login" style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>Sign in</a>}>
+              <NavAuth />
+            </Suspense>
+          </div>
+          <div className="nav-mobile-menu" style={{ display: "none" }}>
+            <NavMobile />
+          </div>
         </div>
       </nav>
     </>

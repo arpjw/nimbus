@@ -17,6 +17,11 @@ const jetbrains = JetBrains_Mono({
   weight: ["300", "400", "500"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "Nimbus",
   description: "Autonomous software engineering, stratified.",

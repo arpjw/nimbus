@@ -76,6 +76,17 @@ body {
   z-index: 9999;
 }
 
+/* Mobile nav classes */
+.nav-desktop-links { display: flex; }
+.nav-mobile-menu   { display: none; }
+.nav-auth-desktop  { display: flex; }
+
+@media (max-width: 767px) {
+  .nav-desktop-links { display: none !important; }
+  .nav-mobile-menu   { display: flex !important; }
+  .nav-auth-desktop  { display: none !important; }
+}
+
 /* Nav scroll effect */
 #main-nav.nav-scrolled {
   border-bottom-color: rgba(255,255,255,0.06) !important;

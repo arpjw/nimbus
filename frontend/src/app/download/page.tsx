@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import NavMobile from "@/components/NavMobile";
 
 const serif = "var(--font-serif,'Georgia',serif)";
 const sans  = "var(--font-sans,system-ui,sans-serif)";
@@ -64,6 +66,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 export default function DownloadPage() {
   const [method, setMethod] = useState<"pip" | "brew" | "curl">("pip");
+  const isMobile = useIsMobile();
 
   return (
     <div style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: sans }}>
@@ -78,18 +81,23 @@ export default function DownloadPage() {
               </div>
               <span style={{ fontWeight: 400, fontSize: 17, fontStyle: "italic", color: C.text, fontFamily: serif }}>Nimbus</span>
             </a>
-            <div style={{ display: "flex", gap: 32 }}>
+            <div className="nav-desktop-links" style={{ display: "flex", gap: 32 }}>
               {([["Product", "/#product"], ["Docs", "https://docs.get-nimbus.com"], ["GitHub", "https://github.com/arpjw/nimbus"], ["Download", "/download"]] as [string, string][]).map(([l, h]) => (
                 <a key={l} href={h} style={{ fontFamily: sans, fontSize: 14, color: l === "Download" ? C.text : C.muted, textDecoration: "none", fontWeight: l === "Download" ? 500 : 400 }}>{l}</a>
               ))}
             </div>
           </div>
-          <a href="https://api.get-nimbus.com/keys/generate" style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.bg, background: C.text, padding: "8px 20px", borderRadius: 999, textDecoration: "none" }}>Get started</a>
+          <div className="nav-auth-desktop">
+            <a href="https://api.get-nimbus.com/keys/generate" style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.bg, background: C.text, padding: "8px 20px", borderRadius: 999, textDecoration: "none" }}>Get started</a>
+          </div>
+          <div className="nav-mobile-menu" style={{ display: "none" }}>
+            <NavMobile />
+          </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <div style={{ paddingTop: 120, paddingBottom: 64, paddingLeft: 28, paddingRight: 28, textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+      <div style={{ paddingTop: isMobile ? 90 : 120, paddingBottom: 64, paddingLeft: isMobile ? 20 : 28, paddingRight: isMobile ? 20 : 28, textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <div style={{ maxWidth: W, margin: "0 auto" }}>
           <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 18 }}>Install Nimbus</p>
           <h1 style={{ fontFamily: serif, fontSize: 44, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.12, marginBottom: 16, color: C.text }}>
@@ -105,14 +113,14 @@ export default function DownloadPage() {
       </div>
 
       {/* Main content */}
-      <div style={{ maxWidth: W, margin: "0 auto", padding: "64px 28px" }}>
+      <div style={{ maxWidth: W, margin: "0 auto", padding: isMobile ? "40px 20px" : "64px 28px" }}>
 
         {/* Install method tabs */}
         <div style={{ marginBottom: 48 }}>
           <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Choose your install method</p>
-          <div style={{ display: "flex", gap: 4, background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 4, width: "fit-content", marginBottom: 24 }}>
-            <Tab label="pip  (recommended)" active={method === "pip"} onClick={() => setMethod("pip")} />
-            <Tab label="Homebrew  (Mac)" active={method === "brew"} onClick={() => setMethod("brew")} />
+          <div style={{ display: "flex", gap: 4, background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: 4, width: "fit-content", marginBottom: 24, flexWrap: isMobile ? "wrap" : "nowrap" }}>
+            <Tab label={isMobile ? "pip" : "pip  (recommended)"} active={method === "pip"} onClick={() => setMethod("pip")} />
+            <Tab label={isMobile ? "Homebrew" : "Homebrew  (Mac)"} active={method === "brew"} onClick={() => setMethod("brew")} />
             <Tab label="curl" active={method === "curl"} onClick={() => setMethod("curl")} />
           </div>
 
@@ -172,7 +180,7 @@ export default function DownloadPage() {
         {/* API Keys */}
         <div style={{ marginBottom: 48 }}>
           <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 24 }}>Get your API keys</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
             {[
               { name: "Anthropic", description: "Powers the planning and implementation agents. Claude Opus for planning, Claude Sonnet for implementation.", url: "https://console.anthropic.com", var: "ANTHROPIC_API_KEY", free: "Free tier available" },
               { name: "Voyage AI", description: "Generates code embeddings for RAG retrieval. voyage-code-2 model, purpose-built for source code.", url: "https://dash.voyageai.com", var: "VOYAGE_API_KEY", free: "50M tokens free/month" },
@@ -206,12 +214,12 @@ export default function DownloadPage() {
               { label: "Soundtrack", pkg: "pip install nimbus-ai[sound]", desc: "Audio feedback for task start, verify pass, complete, and failed states." },
               { label: "Both", pkg: "pip install nimbus-ai[voice,sound]", desc: "Voice input and soundtrack together." },
             ].map(e => (
-              <div key={e.label} style={{ display: "flex", alignItems: "center", gap: 16, border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 18px", background: "#0d0d0d" }}>
-                <div style={{ flexShrink: 0, width: 80 }}>
+              <div key={e.label} style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", gap: 16, border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 18px", background: "#0d0d0d" }}>
+                <div style={{ flexShrink: 0, width: isMobile ? "auto" : 80 }}>
                   <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 600, color: C.muted }}>{e.label}</span>
                 </div>
                 <code style={{ fontFamily: mono, fontSize: 12, color: "rgba(255,255,255,0.55)", flex: 1 }}>{e.pkg}</code>
-                <p style={{ fontFamily: sans, fontSize: 12, color: "rgba(255,255,255,0.3)", flex: 1.5, lineHeight: 1.5 }}>{e.desc}</p>
+                <p style={{ fontFamily: sans, fontSize: 12, color: "rgba(255,255,255,0.3)", flex: isMobile ? "none" : 1.5, lineHeight: 1.5 }}>{e.desc}</p>
               </div>
             ))}
           </div>
@@ -235,7 +243,7 @@ export default function DownloadPage() {
         {/* What's next */}
         <div>
           <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 24 }}>{"What's next"}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 12 }}>
             {[
               { title: "Run your first task", desc: "Step-by-step walkthrough of the full Nimbus REPL from welcome screen to merged PR.", href: "https://docs.get-nimbus.com/getting-started/first-task" },
               { title: "Explore built-in agents", desc: "20 pre-configured agents for security, testing, docs, and more. No configuration needed.", href: "https://docs.get-nimbus.com/agents/overview" },

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useRef, ReactNode } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const serif = "var(--font-serif,'Georgia',serif)";
 const sans  = "var(--font-sans,system-ui,sans-serif)";
@@ -53,19 +54,20 @@ const LINES = [
 
 function Terminal() {
   const [vis, setVis] = useState<number[]>([]);
+  const isMobile = useIsMobile();
   useEffect(() => {
     const ts = LINES.map((_, i) => setTimeout(() => setVis(v => [...v, i]), LINES[i].d));
     return () => ts.forEach(clearTimeout);
   }, []);
   return (
-    <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, overflow: "hidden", background: "#0c0c0c" }}>
+    <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, overflow: "hidden", background: "#0c0c0c", overflowX: "auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
         {[0,1,2].map(i => <div key={i} style={{ width: 11, height: 11, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />)}
         <span style={{ marginLeft: 10, fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.2)" }}>nimbus · zsh</span>
       </div>
-      <div style={{ padding: "22px 28px", fontFamily: mono, fontSize: 13, lineHeight: 1.75, minHeight: 360 }}>
+      <div style={{ padding: "22px 28px", fontFamily: mono, fontSize: isMobile ? 11 : 13, lineHeight: 1.75, minHeight: 360 }}>
         {LINES.map((l, i) => vis.includes(i) && (
-          <div key={i} style={{ color: l.c, minHeight: l.t ? undefined : 12 }}>{l.t}</div>
+          <div key={i} style={{ color: l.c, minHeight: l.t ? undefined : 12, whiteSpace: "pre" }}>{l.t}</div>
         ))}
         {vis.length < LINES.length && (
           <span style={{ display: "inline-block", width: 7, height: 13, background: "rgba(255,255,255,0.5)", verticalAlign: "middle", animation: "blink 1s step-end infinite" }} />
@@ -188,14 +190,17 @@ function Stage({ children }: { children: ReactNode }) {
 const divider = { height: 1, background: "rgba(255,255,255,0.05)", maxWidth: W, margin: "0 auto" } as const;
 
 export default function Page() {
+  const isMobile = useIsMobile();
+  const px = isMobile ? 20 : 28;
+
   return (
     <div style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: sans, overflowX: "hidden" }}>
 
       {/* HERO */}
-      <section style={{ paddingTop: 140, paddingBottom: 0, paddingLeft: 28, paddingRight: 28 }}>
+      <section style={{ paddingTop: isMobile ? 100 : 140, paddingBottom: 0, paddingLeft: px, paddingRight: px }}>
         <div style={{ maxWidth: W, margin: "0 auto" }}>
-          <div style={{ maxWidth: 520, marginBottom: 56 }}>
-            <h1 style={{ fontFamily: serif, fontSize: 40, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.15, marginBottom: 20, color: C.text }}>
+          <div style={{ maxWidth: isMobile ? "100%" : 520, marginBottom: 56 }}>
+            <h1 style={{ fontFamily: serif, fontSize: isMobile ? 30 : 40, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.15, marginBottom: 20, color: C.text }}>
               {"Autonomous software engineering, "}
               <em style={{ fontStyle: "italic" }}>stratified.</em>
             </h1>
@@ -211,10 +216,10 @@ export default function Page() {
       </section>
 
       {/* LOGOS */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "28px 28px", marginTop: 72 }}>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: isMobile ? "28px 20px" : "28px 28px", marginTop: 72 }}>
         <div style={{ maxWidth: W, margin: "0 auto" }}>
           <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.18)", textAlign: "center", marginBottom: 24, letterSpacing: "0.07em", textTransform: "uppercase" }}>Works with your stack</p>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 44, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: isMobile ? 28 : 44, flexWrap: "wrap" }}>
             {([
               { name: "GitHub",    slug: "github" },
               { name: "Linear",    slug: "linear" },
@@ -226,7 +231,7 @@ export default function Page() {
             ] as { name: string; slug: string }[]).map(({ name, slug }) => (
               <div key={name} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: 0.35 }}>
                 <img src={`https://cdn.simpleicons.org/${slug}/ffffff`} alt={name} width={22} height={22} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.04em" }}>{name}</span>
+                <span style={{ fontFamily: mono, fontSize: isMobile ? 9 : 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.04em" }}>{name}</span>
               </div>
             ))}
           </div>
@@ -234,13 +239,13 @@ export default function Page() {
       </div>
 
       {/* USE NIMBUS EVERYWHERE */}
-      <section id="product" style={{ padding: "100px 28px" }}>
+      <section id="product" style={{ padding: isMobile ? "60px 20px" : "100px 28px" }}>
         <div style={{ maxWidth: W, margin: "0 auto" }}>
           <FadeUp>
             <h2 style={{ fontFamily: serif, fontSize: 34, fontWeight: 400, letterSpacing: "-0.02em", marginBottom: 8, color: C.text }}>Use Nimbus everywhere you work</h2>
             <p style={{ fontFamily: sans, fontSize: 16, color: C.muted, marginBottom: 48 }}>A unified engineering agent across every surface.</p>
           </FadeUp>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 12 }}>
 
             {/* Terminal card */}
             <FadeUp delay={0}>
@@ -353,8 +358,8 @@ export default function Page() {
       <div style={divider} />
 
       {/* FEATURE 1 */}
-      <section style={{ padding: "120px 28px" }}>
-        <div style={{ maxWidth: W, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 80, alignItems: "center" }}>
+      <section style={{ padding: isMobile ? "60px 20px" : "120px 28px" }}>
+        <div style={{ maxWidth: W, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.5fr", gap: isMobile ? 32 : 80, alignItems: "center" }}>
           <FadeUp>
             <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Issues → pull requests</p>
             <h2 style={{ fontFamily: serif, fontSize: 36, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.15, marginBottom: 16, color: C.text }}>
@@ -374,29 +379,33 @@ export default function Page() {
       <div style={divider} />
 
       {/* FEATURE 2 */}
-      <section style={{ padding: "120px 28px", background: "#080808" }}>
-        <div style={{ maxWidth: W, margin: "0 auto", display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 80, alignItems: "center" }}>
-          <FadeUp><Stage><MemoryDemo /></Stage></FadeUp>
-          <FadeUp delay={100}>
-            <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Persistent memory</p>
-            <h2 style={{ fontFamily: serif, fontSize: 36, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.15, marginBottom: 16, color: C.text }}>
-              {"Gets smarter"}
-              <br />
-              <em style={{ fontStyle: "italic" }}>every run.</em>
-            </h2>
-            <p style={{ fontFamily: sans, fontSize: 15, color: C.muted, lineHeight: 1.7, marginBottom: 22 }}>
-              After every task, Nimbus writes a memory entry capturing conventions, patterns, and outcomes. Future tasks retrieve this context automatically.
-            </p>
-            <a href="https://docs.get-nimbus.com/terminal/memory" style={{ fontFamily: sans, fontSize: 14, color: C.gold, textDecoration: "none" }}>Learn about codebase memory →</a>
-          </FadeUp>
+      <section style={{ padding: isMobile ? "60px 20px" : "120px 28px", background: "#080808" }}>
+        <div style={{ maxWidth: W, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: isMobile ? 32 : 80, alignItems: "center" }}>
+          <div style={{ order: isMobile ? 2 : 1 }}>
+            <FadeUp><Stage><MemoryDemo /></Stage></FadeUp>
+          </div>
+          <div style={{ order: isMobile ? 1 : 2 }}>
+            <FadeUp delay={100}>
+              <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Persistent memory</p>
+              <h2 style={{ fontFamily: serif, fontSize: 36, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.15, marginBottom: 16, color: C.text }}>
+                {"Gets smarter"}
+                <br />
+                <em style={{ fontStyle: "italic" }}>every run.</em>
+              </h2>
+              <p style={{ fontFamily: sans, fontSize: 15, color: C.muted, lineHeight: 1.7, marginBottom: 22 }}>
+                After every task, Nimbus writes a memory entry capturing conventions, patterns, and outcomes. Future tasks retrieve this context automatically.
+              </p>
+              <a href="https://docs.get-nimbus.com/terminal/memory" style={{ fontFamily: sans, fontSize: 14, color: C.gold, textDecoration: "none" }}>Learn about codebase memory →</a>
+            </FadeUp>
+          </div>
         </div>
       </section>
 
       <div style={divider} />
 
       {/* FEATURE 3 */}
-      <section style={{ padding: "120px 28px" }}>
-        <div style={{ maxWidth: W, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 80, alignItems: "center" }}>
+      <section style={{ padding: isMobile ? "60px 20px" : "120px 28px" }}>
+        <div style={{ maxWidth: W, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.5fr", gap: isMobile ? 32 : 80, alignItems: "center" }}>
           <FadeUp>
             <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>In every tool, at every step</p>
             <h2 style={{ fontFamily: serif, fontSize: 36, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.15, marginBottom: 16, color: C.text }}>
@@ -418,12 +427,12 @@ export default function Page() {
       <div style={divider} />
 
       {/* CAPABILITY CARDS */}
-      <section style={{ padding: "120px 28px", background: "#080808" }}>
+      <section style={{ padding: isMobile ? "60px 20px" : "120px 28px", background: "#080808" }}>
         <div style={{ maxWidth: W, margin: "0 auto" }}>
           <FadeUp>
             <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Stay on the frontier</p>
           </FadeUp>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, overflow: "hidden" }}>
             {([
               { h: "Use the best model for every task", b: "Claude Opus for planning, Claude Sonnet for implementation. Auto mode picks the right model per phase.", l: "Explore models" },
               { h: "Complete codebase understanding", b: "voyage-code-2 embeddings fused with BM25 via RRF. AST-aware chunking. Multi-repo workspace support.", l: "Learn about retrieval" },
@@ -444,7 +453,7 @@ export default function Page() {
       <div style={divider} />
 
       {/* CHANGELOG */}
-      <section id="changelog" style={{ padding: "120px 28px" }}>
+      <section id="changelog" style={{ padding: isMobile ? "60px 20px" : "120px 28px" }}>
         <div style={{ maxWidth: W, margin: "0 auto" }}>
           <FadeUp>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 36 }}>
@@ -453,7 +462,7 @@ export default function Page() {
             </div>
           </FadeUp>
           <FadeUp delay={60}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)", gap: isMobile ? 8 : 10 }}>
               {([
                 { v: "1.1", d: "Apr 26, 2026", t: "Interactive terminal + 20 built-in agents" },
                 { v: "1.1", d: "Apr 26, 2026", t: "pip install nimbus-ai on PyPI" },
@@ -476,14 +485,14 @@ export default function Page() {
       <div style={divider} />
 
       {/* CTA */}
-      <section style={{ padding: "160px 28px" }}>
+      <section style={{ padding: isMobile ? "80px 20px" : "160px 28px" }}>
         <FadeUp>
           <div style={{ maxWidth: W, margin: "0 auto", textAlign: "center" }}>
-            <h2 style={{ fontFamily: serif, fontSize: 56, fontWeight: 400, letterSpacing: "-0.025em", lineHeight: 1.05, color: C.text, marginBottom: 40 }}>
+            <h2 style={{ fontFamily: serif, fontSize: isMobile ? 38 : 56, fontWeight: 400, letterSpacing: "-0.025em", lineHeight: 1.05, color: C.text, marginBottom: 40 }}>
               {"Try Nimbus "}
               <em style={{ fontStyle: "italic" }}>now.</em>
             </h2>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 20 }}>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 20, flexDirection: isMobile ? "column" : "row", alignItems: "center" }}>
               <a href="/download" style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.bg, background: C.text, padding: "13px 32px", borderRadius: 999, textDecoration: "none" }}>Get started free ↓</a>
               <a href="https://docs.get-nimbus.com" style={{ fontFamily: sans, fontSize: 15, fontWeight: 500, color: C.muted, padding: "13px 24px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 999, textDecoration: "none" }}>Read the docs</a>
             </div>
@@ -495,9 +504,9 @@ export default function Page() {
       <div style={divider} />
 
       {/* FOOTER */}
-      <footer style={{ padding: "52px 28px" }}>
+      <footer style={{ padding: isMobile ? "40px 20px" : "52px 28px" }}>
         <div style={{ maxWidth: W, margin: "0 auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 48, marginBottom: 40 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr 1fr 1fr", gap: isMobile ? 32 : 48, marginBottom: 40 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
                 <div style={{ width: 18, height: 18, borderRadius: 4, background: C.text, display: "flex", alignItems: "center", justifyContent: "center" }}>

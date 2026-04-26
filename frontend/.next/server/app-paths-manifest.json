@@ -1,3 +1,16 @@
 {
-  "/page": "app/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/download/page": "app/download/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/task/[id]/page": "app/task/[id]/page.js",
+  "/prism/try/page": "app/prism/try/page.js",
+  "/prism/page": "app/prism/page.js",
+  "/dashboard/keys/page": "app/dashboard/keys/page.js",
+  "/dashboard/automations/page": "app/dashboard/automations/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/memory/page": "app/dashboard/memory/page.js",
+  "/dashboard/tasks/page": "app/dashboard/tasks/page.js",
+  "/app/page": "app/app/page.js"
 }
