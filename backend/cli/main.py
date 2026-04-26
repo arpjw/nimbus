@@ -503,7 +503,7 @@ def main():
         prog="nimbus",
         description="Nimbus autonomous SWE agent CLI",
     )
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", required=False)
 
     run_p = sub.add_parser("run", help="Submit a task to the Nimbus agent")
     run_p.add_argument("task", metavar="TASK", help='Task description, e.g. "fix the login bug"')
@@ -625,7 +625,18 @@ def main():
     skills_create_p.add_argument("--description", required=True, metavar="DESC", help="Short description")
     skills_create_p.add_argument("--prompt", required=True, metavar="PROMPT", help="System prompt addition")
 
+    explain_p = sub.add_parser("explain", help="Explain a source file in plain English")
+    explain_p.add_argument("file", metavar="FILE", help="Relative path to the file, e.g. services/auth.py")
+
     args = parser.parse_args()
+    if args.command is None:
+        from cli.interactive import NimbusREPL
+        repl = NimbusREPL(Path.cwd())
+        sys.exit(asyncio.run(repl.start()) or 0)
+    if args.command == "explain":
+        from cli.interactive import NimbusREPL
+        repl = NimbusREPL(Path.cwd())
+        sys.exit(asyncio.run(repl._explain(args.file)) or 0)
     if args.command == "review":
         sys.exit(asyncio.run(_review(args)))
     if args.command == "issue":
