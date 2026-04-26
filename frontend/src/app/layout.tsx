@@ -1,20 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-jakarta",
   display: "swap",
-  weight: ["300", "400", "500"],
-});
-
-const cormorant = Cormorant_Garamond({
-  subsets: ["latin"],
-  variable: "--font-cormorant",
-  display: "swap",
-  weight: ["300", "400", "500", "600"],
-  style: ["normal", "italic"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 const jetbrains = JetBrains_Mono({
@@ -26,13 +18,17 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Nimbus — Autonomous SWE Agent",
-  description: "Multi-repo, Claude-powered software engineering agent with hybrid RAG and self-reviewing PR loops.",
+  description: "Nimbus plans, implements, and reviews code against real repositories — entirely on its own.",
+  openGraph: {
+    title: "Nimbus",
+    description: "Autonomous software engineering.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${cormorant.variable} ${jetbrains.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+    <html lang="en" className={`${jakarta.variable} ${jetbrains.variable}`}>
+      <body className="font-sans antialiased noise">{children}</body>
     </html>
   );
 }
