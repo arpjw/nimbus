@@ -1,21 +1,59 @@
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.backends.legacy:build"
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "nimbus"
-version = "0.1.0"
-description = "Nimbus autonomous SWE agent CLI"
-requires-python = ">=3.12"
+name = "nimbus-ai"
+version = "1.1.0"
+description = "Autonomous software engineering from your terminal"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [{name = "Arya Somu", email = "arya@monolithsystematic.com"}]
+keywords = ["ai", "agent", "code", "autonomous", "engineering", "llm", "claude"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+]
 dependencies = [
-    "httpx>=0.28.0",
-    "websockets>=13.0",
+    "anthropic>=0.40.0",
+    "voyageai>=0.3.0",
+    "chromadb>=0.5.0",
+    "rich>=13.0",
+    "typer>=0.12.0",
+    "gitpython>=3.1.0",
+    "pygithub>=2.0.0",
+    "toml>=0.10.0",
+    "watchdog>=4.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.27.0",
+    "python-dotenv>=1.0.0",
     "colorama>=0.4.6",
+    "websockets>=13.0",
 ]
 
+[project.optional-dependencies]
+voice = ["openai-whisper", "sounddevice", "numpy", "scipy"]
+sound = ["pygame"]
+
 [project.scripts]
-nimbus = "cli.main:main"
+nimbus = "cli.main:app"
+
+[project.urls]
+Homepage = "https://get-nimbus.com"
+Repository = "https://github.com/arpjw/nimbus"
+Documentation = "https://github.com/arpjw/nimbus#readme"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["cli*"]
+include = ["cli*", "services*", "agent*", "prism*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]

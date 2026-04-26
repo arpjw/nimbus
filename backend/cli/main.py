@@ -103,12 +103,22 @@ _VERDICT_COLOR = {
 }
 
 
+def version_callback(value: bool):
+    if value:
+        typer.echo("nimbus 1.1.0")
+        raise typer.Exit()
+
+
 @app.callback(invoke_without_command=True)
 def default(
     ctx: typer.Context,
     voice: bool = typer.Option(False, "--voice", help="Use voice input for task description"),
+    version: bool = typer.Option(False, "--version", "-v", callback=version_callback, is_eager=True, help="Show version"),
 ):
     if ctx.invoked_subcommand is None:
+        from cli.config import check_first_run
+        if not check_first_run():
+            raise typer.Exit()
         from cli.interactive import NimbusREPL
         repl = NimbusREPL(Path.cwd(), voice_mode=voice)
         asyncio.run(repl.start())

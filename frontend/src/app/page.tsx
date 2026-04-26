@@ -513,7 +513,7 @@ export default function Page() {
             <h2 style={{ fontFamily: serif, fontSize: 56, fontWeight: 400, letterSpacing: "-0.03em", lineHeight: 1.0, color: C.text, marginBottom: 48 }}>
               Try Nimbus <em style={{ fontStyle: "italic" }}>now.</em>
             </h2>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 48 }}>
               <a href="https://api.get-nimbus.com/keys/generate"
                 style={{ fontFamily: sans, fontSize: 15, fontWeight: 500, color: C.bg, background: C.text, padding: "13px 28px", borderRadius: 10, textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
                 Get started free <ArrowRight size={14} />
@@ -523,7 +523,32 @@ export default function Page() {
                 <Github size={14} /> View source
               </a>
             </div>
-            <p style={{ marginTop: 16, fontFamily: mono, fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
+
+            {/* Quick start code block */}
+            <div style={{ display: "inline-block", textAlign: "left", background: "rgba(255,255,255,0.03)", border: `1px solid ${C.border}`, borderRadius: 16, padding: "28px 36px", marginBottom: 20 }}>
+              <div style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 13, lineHeight: 1.9, color: C.text }}>
+                <p style={{ color: "rgba(255,255,255,0.3)" }}># install</p>
+                <p>pip install nimbus-ai</p>
+                <p>&nbsp;</p>
+                <p style={{ color: "rgba(255,255,255,0.3)" }}># set your API keys</p>
+                <p>export ANTHROPIC_API_KEY=sk-ant-...</p>
+                <p>export VOYAGE_API_KEY=pa-...</p>
+                <p>&nbsp;</p>
+                <p style={{ color: "rgba(255,255,255,0.3)" }}># launch</p>
+                <p>cd your-project &amp;&amp; nimbus</p>
+              </div>
+            </div>
+            <p style={{ fontFamily: mono, fontSize: 12, color: "rgba(255,255,255,0.2)", marginBottom: 8 }}>
+              or use the hosted backend
+            </p>
+            <div style={{ display: "inline-block", textAlign: "left", background: "rgba(255,255,255,0.03)", border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 24px", marginBottom: 20 }}>
+              <div style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 12, lineHeight: 1.9, color: "rgba(255,255,255,0.5)" }}>
+                <p>nimbus run &quot;your task&quot; \</p>
+                <p>&nbsp;&nbsp;--backend https://api.get-nimbus.com \</p>
+                <p>&nbsp;&nbsp;--api-key nk_...</p>
+              </div>
+            </div>
+            <p style={{ marginTop: 8, fontFamily: mono, fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
               Free tier · 10 tasks/month · No credit card required
             </p>
           </div>

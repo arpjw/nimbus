@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+recursive-include backend/cli *.py
+recursive-include backend/services *.py
+recursive-include backend/agent *.py
+recursive-include backend/prism *.py
+global-exclude __pycache__
+global-exclude *.pyc
+global-exclude .env

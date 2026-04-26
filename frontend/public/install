@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+
+echo ""
+echo "  Installing Nimbus..."
+echo ""
+
+# Check Python
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "  Error: Python 3.11+ is required."
+    echo "  Install it from https://python.org"
+    exit 1
+fi
+
+PYTHON_VERSION=$(python3 -c "import sys; print(sys.version_info.minor)")
+if [ "$PYTHON_VERSION" -lt 11 ]; then
+    echo "  Error: Python 3.11+ required (you have 3.$PYTHON_VERSION)"
+    exit 1
+fi
+
+# Install
+pip install nimbus-ai --quiet
+
+echo "  ✓ Nimbus installed"
+echo ""
+echo "  Get started:"
+echo ""
+echo "    export ANTHROPIC_API_KEY=sk-ant-..."
+echo "    export VOYAGE_API_KEY=pa-..."
+echo "    cd your-project"
+echo "    nimbus"
+echo ""
+echo "  Get API keys:"
+echo "    Anthropic → https://console.anthropic.com"
+echo "    Voyage AI → https://dash.voyageai.com"
+echo ""
