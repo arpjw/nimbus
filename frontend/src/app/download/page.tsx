@@ -56,7 +56,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 
 function Tab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: mono, fontSize: 12, color: active ? C.text : C.faint, padding: "8px 16px", borderRadius: 6, background: active ? "rgba(255,255,255,0.07)" : "transparent", transition: "all 0.15s", letterSpacing: "0.03em" }}>
+    <button onClick={onClick} style={{ border: "none", cursor: "pointer", fontFamily: mono, fontSize: 12, color: active ? C.text : C.faint, padding: "8px 16px", borderRadius: 6, background: active ? "rgba(255,255,255,0.07)" : "transparent", transition: "all 0.15s", letterSpacing: "0.03em" }}>
       {label}
     </button>
   );
