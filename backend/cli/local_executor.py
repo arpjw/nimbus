@@ -1,6 +1,7 @@
 import difflib
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import time
@@ -253,19 +254,37 @@ End with: FILE_CONTENT_END"""
         results = {}
 
         if list(self.repo_path.rglob("*.py")):
-            r = subprocess.run(["python", "-m", "pytest", "--tb=no", "-q"],
-                               capture_output=True, cwd=str(self.repo_path))
-            results["pytest"] = r.returncode == 0
+            if shutil.which("pytest"):
+                r = subprocess.run(["python", "-m", "pytest", "--tb=no", "-q"],
+                                   capture_output=True, cwd=str(self.repo_path))
+                results["pytest"] = r.returncode == 0
+            elif shutil.which("python"):
+                r = subprocess.run(["python", "-m", "py_compile"] +
+                                   [str(f) for f in self.repo_path.rglob("*.py")][:20],
+                                   capture_output=True, cwd=str(self.repo_path))
+                results["py_compile"] = r.returncode == 0
 
         if list(self.repo_path.rglob("tsconfig.json")):
-            r = subprocess.run(["npx", "tsc", "--noEmit"],
-                               capture_output=True, cwd=str(self.repo_path))
-            results["tsc"] = r.returncode == 0
+            if shutil.which("tsc"):
+                r = subprocess.run(["tsc", "--noEmit"],
+                                   capture_output=True, cwd=str(self.repo_path))
+                results["tsc"] = r.returncode == 0
+            elif shutil.which("npx"):
+                r = subprocess.run(["npx", "tsc", "--noEmit"],
+                                   capture_output=True, cwd=str(self.repo_path))
+                results["tsc"] = r.returncode == 0
 
         if list(self.repo_path.rglob("*.go")):
-            r = subprocess.run(["go", "build", "./..."],
-                               capture_output=True, cwd=str(self.repo_path))
-            results["go build"] = r.returncode == 0
+            if shutil.which("go"):
+                r = subprocess.run(["go", "build", "./..."],
+                                   capture_output=True, cwd=str(self.repo_path))
+                results["go build"] = r.returncode == 0
+
+        if list(self.repo_path.rglob("Cargo.toml")):
+            if shutil.which("cargo"):
+                r = subprocess.run(["cargo", "check"],
+                                   capture_output=True, cwd=str(self.repo_path))
+                results["cargo"] = r.returncode == 0
 
         render_verify(results)
         return results
