@@ -4,13 +4,74 @@
 
 Nimbus is a multi-repository SWE agent that plans, implements, and reviews code against real codebases — entirely on its own. Powered by Claude and Voyage AI.
 
-[get-nimbus.com](https://get-nimbus.com) · MIT License
+[get-nimbus.com](https://get-nimbus.com) · [api.get-nimbus.com](https://api.get-nimbus.com) · MIT License
 
 ---
 
 ## Overview
 
-Nimbus takes a task description and a target repository and handles everything from there — cloning the codebase, building a semantic index of all source files, generating a grounded implementation plan, executing changes through an agentic tool-use loop, running your actual test suite, opening a pull request, posting a self-review of its own diff, and responding to human reviewer comments.
+Nimbus takes a task description and a target repository and handles everything: cloning the codebase, building a semantic index of all source files, generating a grounded implementation plan, executing changes through an agentic tool-use loop, running your actual test suite, previewing the diff, opening a pull request, posting a self-review, and responding to human reviewer comments.
+
+It also integrates directly into GitHub — responding to `/nimbus` commands in PR comments, auto-triggering from issue labels, and posting progress updates autonomously.
+
+## Hosted
+
+The backend is live at [api.get-nimbus.com](https://api.get-nimbus.com). Generate an API key and start running tasks without any local setup:
+
+```bash
+curl -s -X POST https://api.get-nimbus.com/keys/generate \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my laptop", "owner_email": "you@example.com"}'
+```
+
+Free tier: 10 tasks/month on public repos. The `raw_key` is only shown once — store it securely.
+
+---
+
+## CLI
+
+Install:
+
+```bash
+pip install -e ./backend
+```
+
+### Commands
+
+```bash
+# Implement a task and open a PR
+nimbus run "migrate auth middleware to JWT" \
+  --backend https://api.get-nimbus.com \
+  --api-key nk_...
+
+# Review any PR diff
+nimbus review https://github.com/owner/repo/pull/42 --post
+
+# Run a task from a GitHub issue
+nimbus issue https://github.com/owner/repo/issues/17
+
+# Generate a test suite for a file
+nimbus test src/auth/middleware.py --write
+```
+
+Set env vars to avoid repeating flags:
+
+```bash
+export NIMBUS_API_KEY=nk_...
+export NIMBUS_BACKEND=https://api.get-nimbus.com
+```
+
+### Flags
+
+| Flag | Description |
+|---|---|
+| `--backend` | Backend URL (default: `http://localhost:8000`) |
+| `--api-key` | API key (or `NIMBUS_API_KEY` env var) |
+| `--yes` / `-y` | Skip plan and diff approval prompts |
+| `--post` | Post review as a PR comment (review command) |
+| `--write` | Write generated tests to disk (test command) |
+
+---
 
 ## Workflow
 
@@ -23,32 +84,46 @@ TASK DESCRIPTION + REPOSITORY URL
     └──────┬──────┘
            │
     ┌──────▼──────┐
-    │  02 INDEX   │  voyage-code-2 embeddings + BM25 over all source files → ChromaDB
+    │  02 INDEX   │  voyage-code-2 + BM25 over all source files → ChromaDB
     └──────┬──────┘
            │
     ┌──────▼──────┐
-    │  03 PLAN    │  Claude Opus retrieves relevant context → file-level change plan
+    │  03 PLAN    │  Claude Opus retrieves context → file-level change plan
     └──────┬──────┘
            │
+    ┌──────▼──────┐       ┌─────────────────┐
+    │  04 APPROVE │──────►│ Plan shown to   │
+    │  (optional) │       │ user for review │
+    └──────┬──────┘       └─────────────────┘
+           │
     ┌──────▼──────────────────────────────┐
-    │  04 IMPLEMENT                        │  Claude Sonnet agentic tool-use loop
-    │     read → write → verify → repeat  │
+    │  05 IMPLEMENT                        │  Claude Sonnet agentic tool-use loop
+    │     read → write → verify → repeat  │  Parallel workers for 6+ file changes
     └──────┬──────────────────────────────┘
            │
     ┌──────▼──────┐
-    │  05 VERIFY  │  pytest / tsc / eslint / cargo
+    │  06 VERIFY  │  pytest / tsc / eslint / cargo
     └──────┬──────┘
            │
-     passes?──── no ────► reformulate plan with error context → back to 04
+     passes?──── no ────► reformulate plan with error context → back to 05
            │
           yes
            │
+    ┌──────▼──────┐       ┌─────────────────┐
+    │  07 DIFF    │──────►│ Diff shown to   │
+    │  PREVIEW    │       │ user for review │
+    └──────┬──────┘       └─────────────────┘
+           │
     ┌──────▼──────┐
-    │  06 REVIEW  │  Claude Sonnet reviews own diff → posts critique to PR
+    │  08 REVIEW  │  Claude Sonnet self-reviews own diff → posts PR comment
     └──────┬──────┘
            │
     ┌──────▼──────┐
-    │   07 PR     │  Branch pushed. PR opened. Comments monitored and addressed.
+    │   09 PR     │  Branch pushed. PR opened. Comments monitored and addressed.
+    └──────┬──────┘
+           │
+    ┌──────▼──────┐
+    │  10 MEMORY  │  Task outcome written to per-repo memory for future tasks
     └─────────────┘
 ```
 
@@ -58,66 +133,106 @@ TASK DESCRIPTION + REPOSITORY URL
 
 ### Hybrid RAG — BM25 + Voyage AI + RRF
 
-The retrieval layer combines two fundamentally different search methods and fuses them:
-
-- **Voyage `voyage-code-2`** — embeddings purpose-built for source code. Understands semantic structure, function signatures, and architectural patterns at a level generic text embeddings cannot reach.
-- **BM25 (Okapi)** — keyword-based retrieval that captures exact symbol names, function identifiers, and string literals that semantic search misses.
-- **Reciprocal Rank Fusion** — merges both ranked lists into a single result set robust to the weaknesses of either method alone: `score(d) = Σ 1 / (k + rank(d))`.
-
-For multi-repo queries, both stages run per repository and results are merged before fusion.
+- **Voyage `voyage-code-2`** — embeddings purpose-built for source code
+- **BM25 (Okapi)** — keyword retrieval capturing exact symbol names and identifiers
+- **Reciprocal Rank Fusion** — fuses both ranked lists: `score(d) = Σ 1 / (k + rank(d))`
+- **AST-aware chunking** — tree-sitter parses Python, TypeScript, and JavaScript into function and class-level chunks. Fallback to line-count chunking for other languages.
 
 ### Claude Opus Planning
 
-Before a single line is written, Claude Opus reasons over the retrieved context and produces a structured JSON plan — a list of specific file-level changes with explicit rationale for each. The implementer receives this plan and executes against it, rather than reasoning from scratch.
+Before a single line is written, Claude Opus generates a structured JSON plan — a list of file-level changes with explicit rationale. The plan is shown to the user for approval before execution begins.
 
 ### Agentic Implementation Loop
 
-Claude Sonnet drives a tool-use loop with access to:
+Claude Sonnet drives a tool-use loop:
 
 | Tool | Description |
-|------|-------------|
-| `read_file` | Read any file in the working directory |
+|---|---|
+| `read_file` | Read any file in the workspace |
 | `write_file` | Write or overwrite a file |
 | `list_files` | Enumerate all source files |
 | `search_files` | Regex search across the codebase |
-| `run_claude_code` | Delegate subtasks to the Claude Code CLI |
+| `run_claude_code` | Delegate to Claude Code CLI |
 | `finish_implementation` | Signal completion |
 
-### Claude Code CLI Integration
+### Parallel Execution
 
-For complex subtasks, the implementation loop can delegate to the `claude` CLI — a native shell tool-use agent with its own execution environment. Nimbus detects whether the CLI is installed and falls back gracefully if not.
+For plans with 6 or more file changes, Nimbus automatically splits the work across 3 parallel Claude Sonnet workers. Each worker handles a subset of changes simultaneously. Configurable via `PARALLEL_THRESHOLD` and `MAX_PARALLEL_WORKERS`.
 
-```bash
-npm install -g @anthropic-ai/claude-code
-```
+### Persistent Codebase Memory
+
+After every task, Nimbus writes a structured memory entry capturing conventions, patterns, libraries, and outcomes. On future tasks against the same repo, these memories are retrieved and injected into the planning prompt — making every subsequent task better informed.
 
 ### Iterative Verification
 
-Nimbus runs your actual toolchain — not a simulated check:
+Runs your actual toolchain:
 
 - **Python** — `ruff`, `mypy`, `pytest`
 - **Node / TypeScript** — `tsc --noEmit`, `eslint`
 - **Rust** — `cargo check`, `cargo test`
 - **Go** — `go build`, `go test`
 
-On failure, the error output becomes context for a new planning pass. The implement → verify → replan cycle runs up to `MAX_IMPLEMENT_ITERATIONS` times (default: 5).
+On failure, error output becomes context for a new planning pass. Loops up to `MAX_IMPLEMENT_ITERATIONS` times (default: 5).
+
+### Diff Preview Gate
+
+After implementation and before the PR opens, Nimbus streams the full git diff to the terminal. Lines added shown in green, removed in red. User approves or rejects before anything is pushed.
 
 ### Self-Reviewing PR Loop
 
 After opening a PR, Nimbus:
+1. Retrieves its own diff via GitHub API
+2. Sends it to Claude Sonnet for structured self-critique
+3. Posts the review as a PR comment (verdict: APPROVE / REQUEST_CHANGES / NEEDS_DISCUSSION)
+4. Monitors for human reviewer comments and responds with technical precision
 
-1. Retrieves its own diff via the GitHub API
-2. Sends it to Claude Sonnet with a critical self-review prompt
-3. Posts the structured critique as a PR comment (verdict: APPROVE / REQUEST_CHANGES / NEEDS_DISCUSSION)
-4. Spawns a background task that polls for human reviewer comments and responds to each
+### Code Review Mode
+
+Point Nimbus at any PR it didn't write:
+
+```bash
+nimbus review https://github.com/owner/repo/pull/42 --post
+```
+
+Retrieves the diff, produces a structured review covering correctness, edge cases, performance, security, and style. Optionally posts as a PR comment.
+
+### Test Generation
+
+```bash
+nimbus test src/auth/middleware.py --write
+```
+
+Queries RAG for existing test conventions in the repo, detects the test framework (pytest, jest, vitest, cargo test, go test), and generates a complete test suite matching existing patterns.
+
+### GitHub App
+
+Install Nimbus on any repo. It then responds to:
+
+- `/nimbus <task>` in any PR or issue comment — implements the task and opens a PR
+- `nimbus` label on any issue — assigns itself, implements a fix, opens a PR, posts progress updates
+
+### Issue-to-PR Pipeline
+
+Full autonomous loop: label applied → Nimbus picks it up → implements → opens PR → posts PR link back to the issue. Zero human invocation after the label.
+
+### API Key Authentication
+
+```bash
+# Generate a key
+curl -X POST https://api.get-nimbus.com/keys/generate \
+  -H "Content-Type: application/json" \
+  -d '{"name": "ci", "owner_email": "you@example.com"}'
+
+# Check usage
+curl https://api.get-nimbus.com/keys/me \
+  -H "X-API-Key: nk_..."
+```
+
+Free tier: 10 tasks/month. Pro tier: unlimited.
 
 ### Multi-Repository Workspaces
 
-Repositories are organized into workspaces. A workspace can contain multiple repos — all indexed into separate ChromaDB collections under the same workspace ID. Planning queries retrieve context across all repos in a workspace simultaneously, enabling tasks that span service boundaries.
-
-### Real-Time WebSocket Streaming
-
-Every phase transition, tool call, and log line streams to the frontend via WebSocket. The dashboard displays a live log stream and phase timeline for every running task.
+Group multiple repos into a workspace. Planning queries retrieve context across all repos simultaneously — enabling tasks that span service boundaries.
 
 ---
 
@@ -126,40 +241,60 @@ Every phase transition, tool call, and log line streams to the frontend via WebS
 ```
 backend/
 ├── agent/
-│   ├── orchestrator.py    # 9-phase async state machine, WebSocket event emission
-│   ├── planner.py         # Claude Opus — RAG-grounded JSON plan generation
-│   ├── implementer.py     # Claude Sonnet — agentic tool-use execution loop
-│   ├── verifier.py        # Stack-aware test/lint runner
-│   └── reviewer.py        # PR self-review + human comment response loop
+│   ├── orchestrator.py          # Full task lifecycle, WebSocket event emission
+│   ├── planner.py               # Claude Opus — RAG-grounded JSON plan
+│   ├── implementer.py           # Claude Sonnet — agentic tool-use loop
+│   ├── parallel_implementer.py  # Multi-worker parallel execution
+│   ├── verifier.py              # Stack-aware test/lint runner
+│   ├── reviewer.py              # PR self-review + comment response
+│   ├── reviewer_external.py     # External PR review mode
+│   └── test_generator.py        # Test suite generation
 ├── services/
-│   ├── embedding.py       # Voyage AI (voyage-code-2), batched async
-│   ├── vector_store.py    # ChromaDB (HNSW, cosine), per-repo collections
-│   ├── rag.py             # BM25 + vector + RRF hybrid retrieval
-│   └── claude_code.py     # Claude Code CLI subprocess bridge
+│   ├── embedding.py             # Voyage AI (voyage-code-2), batched async
+│   ├── vector_store.py          # ChromaDB (HNSW, cosine)
+│   ├── rag.py                   # BM25 + vector + RRF hybrid retrieval
+│   ├── chunker.py               # AST-aware chunking via tree-sitter
+│   ├── memory.py                # Persistent per-repo codebase memory
+│   ├── auth.py                  # API key generation, validation, rate limiting
+│   └── claude_code.py           # Claude Code CLI bridge
 ├── tools/
-│   ├── file_tools.py      # read / write / list / search (path-traversal safe)
-│   ├── git_tools.py       # GitPython clone + PyGitHub PR creation
-│   └── shell_tools.py     # Sandboxed command runner (allowlist-gated)
-└── api/
-    ├── ws.py              # WebSocket connection manager + queue pump
-    └── routes/
-        ├── tasks.py       # Task REST + WebSocket endpoints
-        └── repos.py       # Workspace + repo CRUD
+│   ├── file_tools.py            # read / write / list / search
+│   ├── git_tools.py             # GitPython + PyGitHub PR creation
+│   └── shell_tools.py           # Sandboxed command runner
+├── github_app/
+│   ├── webhooks.py              # POST /github/webhook — HMAC validation
+│   ├── handlers.py              # issue_comment, issues, pull_request handlers
+│   └── github.py                # GitHub API: reactions, comments
+├── cli/
+│   ├── main.py                  # CLI entry point — run, review, issue, test
+│   ├── client.py                # Async HTTP + WebSocket client
+│   └── git.py                   # Git remote detection
+├── api/
+│   ├── ws.py                    # WebSocket connection manager
+│   └── routes/
+│       ├── tasks.py             # Task REST + WebSocket + review + test endpoints
+│       ├── repos.py             # Workspace + repo CRUD
+│       └── keys.py              # API key management
+├── models/
+│   ├── task.py                  # Task, Repo, Workspace SQLModel definitions
+│   └── schemas.py               # Pydantic request/response schemas
+├── Dockerfile.prod              # Production Docker image
+└── railway.toml                 # Railway deployment config
 
-frontend/                  # Live at get-nimbus.com
+frontend/                        # Live at get-nimbus.com
 ├── app/
-│   ├── page.tsx           # Editorial landing page
-│   ├── dashboard/         # Workspace and task management
-│   └── task/[id]/         # Live log stream + phase timeline
+│   ├── page.tsx                 # Editorial landing page
+│   ├── dashboard/               # Workspace and task management
+│   └── task/[id]/               # Live log stream + phase timeline
 └── components/
-    ├── landing/           # Hero terminal, features grid, workflow
-    ├── dashboard/         # TaskCard, NewTaskModal
-    └── task/              # PhaseTimeline, LogStream
+    ├── landing/                 # Hero terminal, features grid, workflow
+    ├── dashboard/               # TaskCard, NewTaskModal
+    └── task/                    # PhaseTimeline, LogStream
 ```
 
 ---
 
-## Quick Start
+## Self-Hosted Setup
 
 ### Prerequisites
 
@@ -191,51 +326,11 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000' > .env.local
 npm install && npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) or visit [get-nimbus.com](https://get-nimbus.com).
-
 ### Docker
 
 ```bash
-cp .env.example .env   # fill in your three keys
+cp .env.example .env
 docker compose up --build
-```
-
----
-
-## Usage
-
-### Create a workspace and run a task
-
-```bash
-# 1. Create workspace
-WORKSPACE=$(curl -s -X POST http://localhost:8000/workspaces/ \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-projects"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-
-# 2. Add a repository
-REPO=$(curl -s -X POST http://localhost:8000/repos/ \
-  -H "Content-Type: application/json" \
-  -d "{\"workspace_id\": \"$WORKSPACE\", \"url\": \"https://github.com/you/your-repo\", \"name\": \"your-repo\"}" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-
-# 3. Run a task
-curl -s -X POST http://localhost:8000/tasks/ \
-  -H "Content-Type: application/json" \
-  -d "{\"workspace_id\": \"$WORKSPACE\", \"repo_id\": \"$REPO\", \"description\": \"Add rate limiting middleware to all API routes\"}" \
-  | python3 -m json.tool
-```
-
-Then open `http://localhost:3000/task/{task_id}` to watch the live log stream.
-
-### Example tasks
-
-```
-"Update all API endpoints to use structured error responses"
-"Add OpenTelemetry tracing to the service layer"
-"Migrate database queries from raw SQL to SQLAlchemy ORM"
-"Refactor authentication to support multiple OAuth providers"
-"Add input validation and sanitization to all POST endpoints"
-"Convert the test suite from unittest to pytest"
 ```
 
 ---
@@ -244,29 +339,48 @@ Then open `http://localhost:3000/task/{task_id}` to watch the live log stream.
 
 | Variable | Default | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | Required. Claude API key |
-| `VOYAGE_API_KEY` | — | Required. Voyage AI key |
-| `GITHUB_TOKEN` | — | Required. GitHub PAT with `repo` scope |
-| `PLANNER_MODEL` | `claude-opus-4-6` | Model used for plan generation |
-| `IMPLEMENTER_MODEL` | `claude-sonnet-4-6` | Model used for implementation |
-| `REVIEWER_MODEL` | `claude-sonnet-4-6` | Model used for PR self-review |
+| `ANTHROPIC_API_KEY` | — | Required |
+| `VOYAGE_API_KEY` | — | Required |
+| `GITHUB_TOKEN` | — | Required. PAT with `repo` scope |
+| `GITHUB_WEBHOOK_SECRET` | — | For GitHub App webhook HMAC validation |
+| `REQUIRE_API_KEY` | `false` | Enable API key auth |
+| `PLANNER_MODEL` | `claude-opus-4-6` | Plan generation model |
+| `IMPLEMENTER_MODEL` | `claude-sonnet-4-6` | Implementation model |
+| `REVIEWER_MODEL` | `claude-sonnet-4-6` | Self-review model |
 | `EMBEDDING_MODEL` | `voyage-code-2` | Voyage embedding model |
-| `MAX_IMPLEMENT_ITERATIONS` | `5` | Max implement → verify → replan cycles |
+| `MAX_IMPLEMENT_ITERATIONS` | `5` | Max implement → verify cycles |
 | `RAG_TOP_K` | `20` | Chunks retrieved per query |
-| `CHUNK_MAX_LINES` | `80` | Lines per chunk at index time |
+| `CHUNK_MAX_LINES` | `80` | Fallback chunk size |
+| `PARALLEL_THRESHOLD` | `6` | Min changes to trigger parallel execution |
+| `MAX_PARALLEL_WORKERS` | `3` | Parallel worker count |
+| `FREE_TIER_MONTHLY_LIMIT` | `10` | Tasks/month on free API tier |
 | `CHROMA_PERSIST_DIR` | `./.chroma` | ChromaDB persistence path |
 
 ---
 
-## RAG Design
+## GitHub App Setup
 
-Retrieval is the foundation of the planning step. The quality of context retrieved directly determines the quality of the implementation plan.
+1. Go to github.com/settings/apps/new
+2. Set webhook URL to `https://api.get-nimbus.com/github/webhook`
+3. Set webhook secret to the value of `GITHUB_WEBHOOK_SECRET`
+4. Subscribe to events: `Issues`, `Issue comment`, `Pull request`
+5. Install on your repos
 
-**Chunking** — Source files are split into overlapping chunks of `CHUNK_MAX_LINES` lines with `CHUNK_OVERLAP_LINES` overlap. Each chunk is stored with metadata: `repo_id`, `file_path`, `language`, `start_line`, `end_line`, `chunk_id`.
+Once installed, comment `/nimbus add rate limiting to all routes` on any issue or PR.
 
-**Embedding** — All chunks are embedded with Voyage AI's `voyage-code-2` model — purpose-built for source code, significantly outperforming general-purpose text embedding models on code retrieval benchmarks.
+---
 
-**Hybrid Retrieval** — At query time, the task description is embedded and queried against ChromaDB for top-K nearest chunks by cosine similarity. The same description is scored against the BM25 corpus by term frequency. Both ranked lists are merged via Reciprocal Rank Fusion. For multi-repo workspaces, both stages run per repo and results are pooled before final ranking.
+## Example Tasks
+
+```
+"Migrate authentication to JWT with refresh token support"
+"Add OpenTelemetry tracing to the service layer"
+"Refactor database queries from raw SQL to SQLAlchemy ORM"
+"Add input validation to all POST endpoints"
+"Convert the test suite from unittest to pytest"
+"Add structured error responses to all API routes"
+"Add a /healthz endpoint that returns {status, timestamp, version}"
+```
 
 ---
 
@@ -276,4 +390,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-Built by [Arya Somu](https://aryasomu.com) · [get-nimbus.com](https://get-nimbus.com)
+Built by [Arya Somu](https://arpjw.github.io) · [get-nimbus.com](https://get-nimbus.com)
