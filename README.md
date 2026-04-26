@@ -18,24 +18,29 @@ It runs locally on your machine or hosted on Railway — your choice.
 
 ## Quick start
 
-### Local terminal (recommended)
+### Install
 
 ```bash
-git clone https://github.com/arpjw/nimbus
-cd nimbus/backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install nimbus-ai
+```
 
-# Set your API keys
-export ANTHROPIC_API_KEY=sk-ant-...
-export VOYAGE_API_KEY=pa-...
+### Configure
 
-# Launch the interactive REPL
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...   # https://console.anthropic.com
+export VOYAGE_API_KEY=pa-...           # https://dash.voyageai.com
+```
+
+### Run
+
+```bash
 cd your-project
 nimbus
 ```
 
-### Hosted backend
+That's it. The gold welcome screen appears, your repo is detected and indexed, and the REPL is ready.
+
+### Hosted backend (no local setup)
 
 ```bash
 curl -s -X POST https://api.get-nimbus.com/keys/generate \
@@ -43,13 +48,17 @@ curl -s -X POST https://api.get-nimbus.com/keys/generate \
   -d '{"name": "my laptop", "owner_email": "you@example.com"}'
 
 export NIMBUS_API_KEY=nk_...
-nimbus run "add rate limiting to /api/upload"
+nimbus run "add rate limiting to /api/upload" \
+  --backend https://api.get-nimbus.com
 ```
 
 Free tier: 10 tasks/month on public repos.
 
----
+### Install via curl
 
+```bash
+curl -fsSL https://get-nimbus.com/install | sh
+```
 ## Interactive terminal
 
 Type `nimbus` with no arguments to launch the interactive REPL:

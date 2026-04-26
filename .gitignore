@@ -21,3 +21,9 @@ frontend/.env.local
 
 # OS
 .DS_Store
+backend/dist/
+backend/*.egg-info/
+backend/nimbus_ai.egg-info/
+backend/dist/
+backend/*.egg-info/
+backend/nimbus_ai.egg-info/
