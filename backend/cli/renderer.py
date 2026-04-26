@@ -147,5 +147,13 @@ def render_verify(results: dict):
 
 
 def prompt_approval(prompt: str, options: str = "y/n") -> str:
+    import sys
     console.print(f"\n  [{MUTED}]{prompt}[/{MUTED}] [{FAINT}][{options}][/{FAINT}] ", end="")
-    return input().strip().lower()
+    sys.stdout.flush()
+    try:
+        response = input().strip().lower()
+        if response == "yes":
+            return "y"
+        return response
+    except EOFError:
+        return "n"
