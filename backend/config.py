@@ -5,9 +5,9 @@ from pathlib import Path
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    anthropic_api_key: str
-    voyage_api_key: str
-    github_token: str
+    anthropic_api_key: str = ""
+    voyage_api_key: str = ""
+    github_token: str = ""
 
     planner_model: str = "claude-opus-4-6"
     implementer_model: str = "claude-sonnet-4-6"
