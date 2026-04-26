@@ -233,6 +233,75 @@ Diff:
         raise typer.Exit(code=1)
 
 
+@app.command()
+def search(
+    query: str = typer.Argument(..., help="Natural language search query"),
+    top_k: int = typer.Option(8, "--top-k", "-k", help="Number of results to return"),
+    open_file: bool = typer.Option(False, "--open", help="Open top result in $EDITOR"),
+):
+    """Semantic search over your indexed codebase."""
+    from cli.local_executor import LocalExecutor
+    from cli.renderer import console, GOLD, FAINT
+    from services.embedding import EmbeddingService
+
+    async def _search():
+        executor = LocalExecutor(Path.cwd())
+
+        try:
+            collection = executor.chroma.get_collection(executor.collection_name)
+        except Exception:
+            console.print(f"\n  [{FAINT}]codebase not indexed — run nimbus first to index[/{FAINT}]\n")
+            return
+
+        embedder = EmbeddingService()
+        embeddings = await embedder.embed_queries([query])
+
+        count = collection.count()
+        if count == 0:
+            console.print(f"\n  [{FAINT}]no results found[/{FAINT}]\n")
+            return
+
+        results = collection.query(
+            query_embeddings=embeddings,
+            n_results=min(top_k, count),
+            include=["documents", "metadatas", "distances"]
+        )
+
+        docs = results["documents"][0] if results["documents"] else []
+        metas = results["metadatas"][0] if results["metadatas"] else []
+        distances = results["distances"][0] if results["distances"] else []
+
+        if not docs:
+            console.print(f"\n  [{FAINT}]no results found[/{FAINT}]\n")
+            return
+
+        console.print(f"\n  [{GOLD}]nimbus search[/{GOLD}]  [{FAINT}]{query}[/{FAINT}]\n")
+        console.print(f"  {len(docs)} results\n")
+
+        for i, (doc, meta, dist) in enumerate(zip(docs, metas, distances)):
+            path = meta.get("path", "unknown")
+            try:
+                rel = str(Path(path).relative_to(Path.cwd()))
+            except Exception:
+                rel = path
+            score = round(1 - dist, 2) if dist else 0
+            prefix = "├─" if i < len(docs) - 1 else "└─"
+            summary = doc.strip().split("\n")[0][:80] if doc else ""
+            console.print(f"  {prefix} [{GOLD}]{rel}[/{GOLD}]  [{FAINT}]score {score}[/{FAINT}]")
+            if summary:
+                console.print(f"     [{FAINT}]{summary}[/{FAINT}]")
+            console.print()
+
+        if open_file and metas:
+            import subprocess as _sp, os
+            first_path = metas[0].get("path", "")
+            editor = os.environ.get("EDITOR", "nano")
+            if first_path and Path(first_path).exists():
+                _sp.run([editor, first_path])
+
+    asyncio.run(_search())
+
+
 @app.command(name="install-hooks")
 def install_hooks(
     severity: str = typer.Option("high", "--severity", help="Block on: high|medium|low"),
