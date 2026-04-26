@@ -203,14 +203,14 @@ function Navbar() {
             <span style={{ fontWeight: 400, fontSize: 17, fontStyle: "italic", color: C.text, fontFamily: serif }}>Nimbus</span>
           </div>
           <div style={{ display: "flex", gap: 32 }}>
-            {([["Product", "/#product"], ["Docs", "https://docs.get-nimbus.com"], ["GitHub", "https://github.com/arpjw/nimbus"]] as [string,string][]).map(([l, h]) => (
+            {([["Product", "/#product"], ["Docs", "https://docs.get-nimbus.com"], ["GitHub", "https://github.com/arpjw/nimbus"], ["Download", "/download"]] as [string,string][]).map(([l, h]) => (
               <a key={l} href={h} style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>{l}</a>
             ))}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <a href="https://api.get-nimbus.com/keys/generate" style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>Sign in</a>
-          <a href="https://api.get-nimbus.com/keys/generate" style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.bg, background: C.text, padding: "8px 20px", borderRadius: 999, textDecoration: "none" }}>Get started</a>
+          <a href="/download" style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.bg, background: C.text, padding: "8px 20px", borderRadius: 999, textDecoration: "none" }}>Download</a>
         </div>
       </div>
     </nav>
@@ -235,7 +235,7 @@ export default function Page() {
             <p style={{ fontFamily: sans, fontSize: 16, color: C.muted, lineHeight: 1.65, marginBottom: 32 }}>
               Nimbus plans, implements, and reviews code against real repositories — entirely on its own. From task description to merged PR.
             </p>
-            <a href="https://api.get-nimbus.com/keys/generate" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.bg, background: C.text, padding: "12px 28px", borderRadius: 999, textDecoration: "none" }}>
+            <a href="/download" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.bg, background: C.text, padding: "12px 28px", borderRadius: 999, textDecoration: "none" }}>
               Get started free ↓
             </a>
           </div>
@@ -517,7 +517,7 @@ export default function Page() {
               <em style={{ fontStyle: "italic" }}>now.</em>
             </h2>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 20 }}>
-              <a href="https://api.get-nimbus.com/keys/generate" style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.bg, background: C.text, padding: "13px 32px", borderRadius: 999, textDecoration: "none" }}>Get started free ↓</a>
+              <a href="/download" style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.bg, background: C.text, padding: "13px 32px", borderRadius: 999, textDecoration: "none" }}>Get started free ↓</a>
               <a href="https://docs.get-nimbus.com" style={{ fontFamily: sans, fontSize: 15, fontWeight: 500, color: C.muted, padding: "13px 24px", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 999, textDecoration: "none" }}>Read the docs</a>
             </div>
             <p style={{ fontFamily: mono, fontSize: 12, color: "rgba(255,255,255,0.2)" }}>pip install nimbus-ai · Free tier · No credit card required</p>
