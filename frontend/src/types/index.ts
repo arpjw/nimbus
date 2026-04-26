@@ -78,6 +78,15 @@ export interface Workspace {
   created_at: string;
 }
 
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  system_prompt_addition: string;
+  owner_key_id: string;
+  created_at: string;
+}
+
 export interface WSEvent {
   task_id: string;
   phase: Phase;

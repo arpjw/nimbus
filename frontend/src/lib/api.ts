@@ -1,4 +1,4 @@
-import type { Task, Repo, Workspace, MemoryEntry, KeyInfo, GeneratedKey } from "@/types";
+import type { Task, Repo, Workspace, MemoryEntry, KeyInfo, GeneratedKey, Skill } from "@/types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export const WS_BASE = BASE.replace(/^http/, "ws");
@@ -59,5 +59,8 @@ export const api = {
         body: JSON.stringify({ name, owner_email }),
       }),
     revoke: (keyId: string) => req<{ deleted: string }>(`/keys/${keyId}`, { method: "DELETE" }),
+  },
+  skills: {
+    list: () => req<Skill[]>("/skills/"),
   },
 };

@@ -391,7 +391,7 @@ export default function Page() {
           <FadeUp>
             <p style={{ fontFamily: mono, fontSize: 11, color: C.faint, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 48 }}>Stay on the frontier</p>
           </FadeUp>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
             {[
               {
                 label: "Retrieval",
@@ -422,16 +422,30 @@ export default function Page() {
                 )
               },
               {
-                label: "Parallelism",
-                h: "Multi-agent execution",
-                b: "Plans with 6+ file changes automatically split across 3 concurrent Claude Sonnet workers. Large refactors in parallel.",
+                label: "Skills",
+                h: "Reusable task types",
+                b: "nimbus run --skill add-tests, dependency-audit, add-openapi-docs. Built-in skills ship with Nimbus. Define your own and share them.",
                 demo: (
                   <div style={{ fontFamily: mono, fontSize: 11, padding: "14px 16px", borderRadius: 8, background: "rgba(0,0,0,0.3)", border: `1px solid ${C.border}`, lineHeight: 1.7 }}>
-                    <p style={{ color: C.faint }}>8 changes · 3 workers</p>
+                    <p style={{ color: C.faint }}>$ nimbus skills list</p>
                     <p style={{ color: C.faint }}>&nbsp;</p>
-                    <p style={{ color: "rgba(255,255,255,0.5)" }}>[worker-1] writing auth.ts</p>
-                    <p style={{ color: "rgba(255,255,255,0.5)" }}>[worker-2] writing jwt.ts</p>
-                    <p style={{ color: "rgba(255,255,255,0.5)" }}>[worker-3] writing login.ts</p>
+                    <p style={{ color: "rgba(255,255,255,0.5)" }}>add-tests         built-in</p>
+                    <p style={{ color: "rgba(255,255,255,0.5)" }}>add-openapi-docs  built-in</p>
+                    <p style={{ color: "rgba(255,255,255,0.5)" }}>dependency-audit  built-in</p>
+                  </div>
+                )
+              },
+              {
+                label: "Automations",
+                h: "Always-on agents",
+                b: "Trigger Nimbus from PagerDuty alerts, CI failures, cron schedules, Linear issues, or any webhook. Set it once, let it run.",
+                demo: (
+                  <div style={{ fontFamily: mono, fontSize: 11, padding: "14px 16px", borderRadius: 8, background: "rgba(0,0,0,0.3)", border: `1px solid ${C.border}`, lineHeight: 1.7 }}>
+                    <p style={{ color: C.faint }}>trigger: pagerduty P1</p>
+                    <p style={{ color: C.faint }}>&nbsp;</p>
+                    <p style={{ color: "rgba(255,255,255,0.5)" }}>→ task queued</p>
+                    <p style={{ color: "rgba(255,255,255,0.5)" }}>→ PR #91 opened</p>
+                    <p style={{ color: C.green }}>→ incident resolved</p>
                   </div>
                 )
               },
@@ -465,10 +479,14 @@ export default function Page() {
           <FadeUp delay={80}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
               {[
+                { v: "1.1", d: "Apr 26, 2026", t: "Mobile PWA — trigger tasks from phone" },
+                { v: "1.1", d: "Apr 26, 2026", t: "Skills system — 5 built-in task types" },
+                { v: "1.1", d: "Apr 26, 2026", t: "Automations — cron, webhooks, PagerDuty" },
+                { v: "1.1", d: "Apr 26, 2026", t: "Linear + Slack integrations" },
+                { v: "1.0", d: "Apr 25, 2026", t: "Web dashboard — tasks, memory, keys" },
+                { v: "1.0", d: "Apr 25, 2026", t: "Self-improving PR reviewer" },
                 { v: "1.0", d: "Apr 25, 2026", t: "Parallel multi-agent execution" },
                 { v: "1.0", d: "Apr 25, 2026", t: "Persistent codebase memory" },
-                { v: "1.0", d: "Apr 25, 2026", t: "GitHub App — /nimbus commands" },
-                { v: "1.0", d: "Apr 25, 2026", t: "Self-improving PR reviewer" },
               ].map((c, i) => (
                 <div key={i} style={{ border: `1px solid ${C.border}`, borderRadius: 16, padding: "18px 20px", background: C.surface }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -538,7 +556,7 @@ export default function Page() {
             <div>
               <p style={{ fontFamily: mono, fontSize: 11, color: C.faint, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}>Product</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {[["Dashboard", "/dashboard"], ["CLI", "https://github.com/arpjw/nimbus#cli"], ["GitHub App", "https://github.com/arpjw/nimbus#github-app-setup"], ["API", "https://api.get-nimbus.com/docs"], ["Changelog", "#changelog"]].map(([l, h]) => (
+                {[["Dashboard", "/dashboard"], ["Mobile App", "/app"], ["CLI", "https://github.com/arpjw/nimbus#cli"], ["GitHub App", "https://github.com/arpjw/nimbus#github-app-setup"], ["API", "https://api.get-nimbus.com/docs"], ["Changelog", "#changelog"]].map(([l, h]) => (
                   <a key={l} href={h} style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>{l}</a>
                 ))}
               </div>
