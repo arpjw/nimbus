@@ -1,227 +1,420 @@
 "use client";
-import Link from "next/link";
-import { ArrowRight, Github } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Instrument_Serif } from "next/font/google";
+import type { Repo, Task } from "@/types";
 
-const serif = "var(--font-serif, 'Georgia', serif)";
-const sans  = "var(--font-sans, system-ui, sans-serif)";
-const mono  = "var(--font-mono, monospace)";
+const serif = Instrument_Serif({ subsets: ["latin"], style: ["italic"], weight: "400" });
 
-const STEPS = [
-  {
-    n: "01",
-    label: "Paste your spec",
-    desc: "Drop in a PRD, a Confluence doc, a Figma description, or just plain English. Anything that describes what you want to build.",
-  },
-  {
-    n: "02",
-    label: "Claude Opus parses it",
-    desc: "Prism sends your spec to Claude Opus, which breaks it into discrete, scoped implementation tasks — each achievable in one pull request, ordered by dependency.",
-  },
-  {
-    n: "03",
-    label: "Review and edit",
-    desc: "The parsed task list is shown to you before anything runs. Edit descriptions, reassign skills, reorder tasks, delete what you don't need, add what's missing.",
-  },
-  {
-    n: "04",
-    label: "Nimbus executes",
-    desc: "Once you approve, Prism queues the tasks to Nimbus in dependency order. PRs open one by one as each task completes. You track progress in real time.",
-  },
-];
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-const EXAMPLES = [
-  {
-    input: "Add user authentication with email/password signup, JWT login, and an admin panel for managing accounts.",
-    tasks: [
-      { id: 1, text: "Create User and AdminUser models with SQLModel", deps: [] },
-      { id: 2, text: "Add bcrypt password hashing utilities", deps: [1] },
-      { id: 3, text: "Implement POST /auth/register and POST /auth/login", deps: [1, 2] },
-      { id: 4, text: "Add JWT middleware for protected routes", deps: [3] },
-      { id: 5, text: "Implement GET /admin/users and POST /admin/users/{id}/deactivate", deps: [1, 4] },
-      { id: 6, text: "Write test suite for all auth endpoints", deps: [3, 4, 5], skill: "add-tests" },
-    ],
-  },
-];
+const C = {
+  bg:      "#0A0A0A",
+  surface: "#141414",
+  border:  "rgba(255,255,255,0.06)",
+  text:    "#FAFAFA",
+  muted:   "rgba(255,255,255,0.5)",
+  gold:    "#c4a96a",
+  green:   "#6aab7a",
+  red:     "#e05c5c",
+};
+
+const ACTIVE_PHASES = new Set([
+  "queued", "cloning", "indexing", "planning",
+  "implementing", "verifying", "fixing",
+  "reviewing", "pr_creation", "cleanup",
+  "awaiting_approval", "awaiting_diff_approval",
+]);
+
+const SKILLS = ["add-tests", "add-openapi-docs", "dependency-audit", "add-logging", "add-error-handling"];
+
+function getApiKey(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("nimbus_api_key");
+}
+
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const apiKey = getApiKey();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (apiKey) headers["X-API-Key"] = apiKey;
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers: { ...headers, ...(init?.headers as Record<string, string> ?? {}) },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+interface PrismTask {
+  id: number;
+  description: string;
+  skill: string | null;
+  depends_on: number[];
+  priority: number;
+}
+
+interface QueuedTask {
+  task_id: string;
+  prism_id: number;
+  description: string;
+}
+
+type AppState = "input" | "review" | "running";
+
+const btn = (gold: boolean, disabled = false): React.CSSProperties => ({
+  width: "100%",
+  height: gold ? 44 : 40,
+  background: disabled ? "rgba(196,169,106,0.35)" : gold ? C.gold : "transparent",
+  color: gold ? "#0A0A0A" : C.muted,
+  border: gold ? "none" : `1px solid ${C.border}`,
+  borderRadius: 8,
+  fontSize: 15,
+  fontWeight: gold ? 600 : 400,
+  cursor: disabled ? "not-allowed" : "pointer",
+  fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+});
 
 export default function PrismPage() {
+  const [appState, setAppState] = useState<AppState>("input");
+  const [spec, setSpec] = useState("");
+  const [tasks, setTasks] = useState<PrismTask[]>([]);
+  const [repos, setRepos] = useState<Repo[]>([]);
+  const [selectedRepo, setSelectedRepo] = useState("");
+  const [workspaceId, setWorkspaceId] = useState("");
+  const [repoFallback, setRepoFallback] = useState("");
+  const [workspaceFallback, setWorkspaceFallback] = useState("");
+  const [parsing, setParsing] = useState(false);
+  const [queueing, setQueueing] = useState(false);
+  const [queued, setQueued] = useState<QueuedTask[]>([]);
+  const [taskStatuses, setTaskStatuses] = useState<Record<string, Task>>({});
+
+  useEffect(() => {
+    req<Repo[]>("/repos/").then(r => {
+      setRepos(r);
+      if (r.length > 0) {
+        setSelectedRepo(r[0].id);
+        setWorkspaceId(r[0].workspace_id);
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const repo = repos.find(r => r.id === selectedRepo);
+    if (repo) setWorkspaceId(repo.workspace_id);
+  }, [selectedRepo, repos]);
+
+  const handleParse = async () => {
+    if (!spec.trim()) return;
+    setParsing(true);
+    try {
+      const result = await req<{ tasks: PrismTask[] }>("/prism/parse", {
+        method: "POST",
+        body: JSON.stringify({ spec }),
+      });
+      setTasks(result.tasks);
+      setAppState("review");
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleQueue = async () => {
+    const repoId = selectedRepo || repoFallback;
+    const wsId = workspaceId || workspaceFallback;
+    if (!repoId || !wsId) return;
+    setQueueing(true);
+    try {
+      const result = await req<{ queued: QueuedTask[] }>("/prism/queue", {
+        method: "POST",
+        body: JSON.stringify({ tasks, repo_id: repoId, workspace_id: wsId }),
+      });
+      setQueued(result.queued);
+      setAppState("running");
+    } finally {
+      setQueueing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (appState !== "running" || queued.length === 0) return;
+    const poll = async () => {
+      for (const qt of queued) {
+        try {
+          const task = await req<Task>(`/tasks/${qt.task_id}`);
+          setTaskStatuses(prev => ({ ...prev, [qt.task_id]: task }));
+        } catch {}
+      }
+    };
+    poll();
+    const id = setInterval(poll, 4000);
+    return () => clearInterval(id);
+  }, [appState, queued]);
+
+  const doneCount = queued.filter(qt => taskStatuses[qt.task_id]?.phase === "done").length;
+  const allDone = queued.length > 0 && doneCount === queued.length;
+
+  const updateTask = (id: number, field: keyof PrismTask, value: string | null | number[]) =>
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
+
+  const deleteTask = (id: number) =>
+    setTasks(prev => prev.filter(t => t.id !== id));
+
+  const addTask = () => {
+    const maxId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) : 0;
+    setTasks(prev => [...prev, { id: maxId + 1, description: "", skill: null, depends_on: [], priority: 1 }]);
+  };
+
+  const resetAll = () => {
+    setAppState("input");
+    setSpec("");
+    setTasks([]);
+    setQueued([]);
+    setTaskStatuses({});
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    background: C.surface,
+    border: `1px solid ${C.border}`,
+    borderRadius: 8,
+    color: C.text,
+    fontSize: 14,
+    padding: "10px 14px",
+    outline: "none",
+    fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+  };
+
   return (
-    <div style={{ background: "#0A0A0A", color: "#FAFAFA", minHeight: "100vh", fontFamily: sans, overflowX: "hidden" }}>
+    <div style={{ minHeight: "100vh", background: C.bg, padding: "60px 24px", fontFamily: "var(--font-jakarta), system-ui, sans-serif" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
-      {/* Nav */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, background: "rgba(10,10,10,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 36 }}>
-            <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
-              <div style={{ width: 20, height: 20, borderRadius: 5, background: "#FAFAFA", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ color: "#0A0A0A", fontWeight: 800, fontSize: 11, fontFamily: sans }}>N</span>
-              </div>
-              <span style={{ fontWeight: 400, fontSize: 18, color: "#FAFAFA", fontFamily: serif, fontStyle: "italic" }}>Nimbus</span>
-            </Link>
-            <div style={{ display: "flex", gap: 28 }}>
-              {[["Product", "/#product"], ["Prism", "/prism"], ["API", "https://api.get-nimbus.com/docs"], ["Changelog", "/#changelog"]].map(([l, h]) => (
-                <a key={l} href={h}
-                  style={{ fontSize: 14, color: l === "Prism" ? "#FAFAFA" : "rgba(255,255,255,0.5)", textDecoration: "none", fontWeight: l === "Prism" ? 500 : 400 }}>
-                  {l}
-                </a>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <a href="https://github.com/arpjw/nimbus" target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", textDecoration: "none", display: "flex", alignItems: "center", gap: 5 }}>
-              <Github size={13} /> GitHub
-            </a>
-            <Link href="/prism/try"
-              style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A", background: "#FAFAFA", padding: "7px 18px", borderRadius: 8, textDecoration: "none" }}>
-              Try Prism
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero */}
-      <section style={{ paddingTop: 120, paddingBottom: 80, paddingLeft: 28, paddingRight: 28 }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ maxWidth: 680, marginBottom: 56 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-              <span style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Nimbus</span>
-              <span style={{ color: "rgba(255,255,255,0.15)" }}>·</span>
-              <span style={{ fontFamily: mono, fontSize: 11, color: "#c4a96a", letterSpacing: "0.08em", textTransform: "uppercase" }}>Prism</span>
-            </div>
-            <h1 style={{ fontSize: 54, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.08, marginBottom: 20, color: "#FAFAFA", fontFamily: serif }}>
-              Spec to pull requests,<br /><em style={{ fontStyle: "italic" }}>automatically.</em>
+        {appState === "input" && (
+          <>
+            <h1 style={{ fontFamily: serif.style.fontFamily, fontStyle: "italic", fontSize: 32, color: C.text, marginBottom: 6, fontWeight: 400 }}>
+              Prism
             </h1>
-            <p style={{ fontSize: 18, color: "rgba(255,255,255,0.5)", lineHeight: 1.65, marginBottom: 32, maxWidth: 520 }}>
-              Paste a product spec in plain English. Prism breaks it into a structured, dependency-ordered sequence of Nimbus tasks and executes them — one pull request at a time.
+            <p style={{ fontFamily: "var(--font-jetbrains), monospace", fontSize: 13, color: C.muted, marginBottom: 40 }}>
+              spec to pull requests
             </p>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <Link href="/prism/try"
-                style={{ fontSize: 15, fontWeight: 500, color: "#0A0A0A", background: "#FAFAFA", padding: "12px 26px", borderRadius: 9, textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
-                Try it out <ArrowRight size={14} />
-              </Link>
-              <a href="https://github.com/arpjw/nimbus" target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 15, color: "rgba(255,255,255,0.35)", textDecoration: "none", display: "flex", alignItems: "center", gap: 5 }}>
-                <Github size={13} /> View source
-              </a>
-            </div>
-          </div>
 
-          {/* Live example */}
-          <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, overflow: "hidden", background: "#111" }}>
-            <div style={{ padding: "16px 22px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Example</span>
-              <span style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.12)" }}>·</span>
-              <span style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)" }}>spec → 6 tasks</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-              {/* Input */}
-              <div style={{ padding: "22px 24px", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
-                <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 12 }}>Input</p>
-                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.7 }}>
-                  {EXAMPLES[0].input}
-                </p>
-              </div>
-              {/* Output tasks */}
-              <div style={{ padding: "22px 24px" }}>
-                <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 12 }}>Parsed tasks</p>
+            <textarea
+              value={spec}
+              onChange={e => setSpec(e.target.value)}
+              placeholder="Describe what you want to build — a PRD, a feature description, or plain English. Prism will break it into a sequence of Nimbus tasks."
+              style={{
+                ...inputStyle,
+                minHeight: 200,
+                resize: "vertical",
+                lineHeight: 1.6,
+                marginBottom: 16,
+                fontSize: 15,
+              }}
+            />
+
+            <div style={{ marginBottom: 16 }}>
+              {repos.length > 0 ? (
+                <select
+                  value={selectedRepo}
+                  onChange={e => setSelectedRepo(e.target.value)}
+                  style={inputStyle}
+                >
+                  {repos.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {EXAMPLES[0].tasks.map((t) => (
-                    <div key={t.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                      <span style={{ fontFamily: mono, fontSize: 11, color: "#c4a96a", flexShrink: 0, marginTop: 2 }}>{t.id}</span>
-                      <div>
-                        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>{t.text}</p>
-                        <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
-                          {t.deps.length > 0 && (
-                            <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.2)" }}>
-                              deps: {t.deps.join(", ")}
-                            </span>
-                          )}
-                          {t.skill && (
-                            <span style={{ fontFamily: mono, fontSize: 10, color: "#c4a96a", background: "rgba(196,169,106,0.08)", padding: "1px 6px", borderRadius: 3 }}>
-                              {t.skill}
-                            </span>
-                          )}
-                        </div>
+                  <input
+                    value={repoFallback}
+                    onChange={e => setRepoFallback(e.target.value)}
+                    placeholder="Repo ID"
+                    style={inputStyle}
+                  />
+                  <input
+                    value={workspaceFallback}
+                    onChange={e => setWorkspaceFallback(e.target.value)}
+                    placeholder="Workspace ID"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
+            </div>
+
+            <button onClick={handleParse} disabled={parsing || !spec.trim()} style={btn(true, parsing || !spec.trim())}>
+              {parsing ? "Parsing..." : "Parse spec →"}
+            </button>
+          </>
+        )}
+
+        {appState === "review" && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+              <h2 style={{ fontSize: 20, color: C.text, fontWeight: 500 }}>Review tasks</h2>
+              <span style={{
+                background: "rgba(196,169,106,0.12)", border: "1px solid rgba(196,169,106,0.3)",
+                color: C.gold, fontSize: 11, fontFamily: "var(--font-jetbrains), monospace",
+                padding: "2px 8px", borderRadius: 4,
+              }}>
+                {tasks.length}
+              </span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+              {tasks.map((task, i) => (
+                <div key={task.id} style={{
+                  background: C.surface, border: `1px solid ${C.border}`,
+                  borderRadius: 10, padding: "14px 16px", position: "relative",
+                }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <span style={{ fontFamily: "var(--font-jetbrains), monospace", color: C.gold, fontSize: 11, minWidth: 22, paddingTop: 3, flexShrink: 0 }}>
+                      #{i + 1}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <textarea
+                        value={task.description}
+                        onChange={e => updateTask(task.id, "description", e.target.value)}
+                        rows={2}
+                        style={{
+                          width: "100%", background: "transparent", border: "none",
+                          color: C.text, fontSize: 14, fontFamily: "var(--font-jetbrains), monospace",
+                          resize: "vertical", outline: "none", lineHeight: 1.6,
+                        }}
+                      />
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
+                        <select
+                          value={task.skill ?? ""}
+                          onChange={e => updateTask(task.id, "skill", e.target.value || null)}
+                          style={{
+                            background: "#1a1a1a", border: `1px solid ${C.border}`,
+                            color: task.skill ? C.gold : C.muted, fontSize: 12,
+                            fontFamily: "var(--font-jetbrains), monospace",
+                            padding: "3px 8px", borderRadius: 4, outline: "none",
+                          }}
+                        >
+                          <option value="">no skill</option>
+                          {SKILLS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        {task.depends_on.length > 0 && (
+                          <span style={{ fontSize: 12, color: C.muted, fontFamily: "var(--font-jetbrains), monospace" }}>
+                            depends on {task.depends_on.map(d => `#${d}`).join(", ")}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  ))}
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 4px", flexShrink: 0 }}
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* How it works */}
-      <section style={{ padding: "80px 28px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 48 }}>How it works</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, overflow: "hidden" }}>
-            {STEPS.map((s) => (
-              <div key={s.n} style={{ background: "#0A0A0A", padding: "28px 26px 32px" }}>
-                <div style={{ fontFamily: mono, fontSize: 22, color: "rgba(255,255,255,0.07)", fontWeight: 400, marginBottom: 16 }}>{s.n}</div>
-                <h3 style={{ fontFamily: serif, fontSize: 19, fontWeight: 400, marginBottom: 10, color: "#FAFAFA", lineHeight: 1.3 }}>{s.label}</h3>
-                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.7 }}>{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            <button
+              onClick={addTask}
+              style={{
+                width: "100%", height: 38, background: "transparent",
+                border: `1px dashed ${C.border}`, color: C.muted,
+                borderRadius: 8, cursor: "pointer", fontSize: 14, marginBottom: 24,
+                fontFamily: "var(--font-jakarta), system-ui, sans-serif",
+              }}
+            >
+              + Add task
+            </button>
 
-      {/* Why Prism */}
-      <section style={{ padding: "80px 28px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "start" }}>
-          <div>
-            <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 20 }}>Why Prism</p>
-            <h2 style={{ fontFamily: serif, fontSize: 38, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.15, marginBottom: 18, color: "#FAFAFA" }}>
-              From idea to<br /><em style={{ fontStyle: "italic" }}>merged PRs.</em>
-            </h2>
-            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", lineHeight: 1.7, marginBottom: 16 }}>
-              The skill required to break a product idea into well-scoped engineering tasks is enormous — it takes years of experience to know what "one PR worth of work" looks like, how to sequence dependencies, and what level of description an autonomous agent needs.
-            </p>
-            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", lineHeight: 1.7 }}>
-              Prism handles that decomposition automatically. You describe what you want to build. Claude Opus reasons about the right task boundaries, dependency order, and appropriate skills. Nimbus executes.
-            </p>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {[
-              { label: "For PMs and founders", desc: "Describe a feature in plain English and watch it get implemented without writing a single technical ticket." },
-              { label: "For engineers", desc: "Break down large features into a properly sequenced task queue. Review and edit before anything runs." },
-              { label: "For teams", desc: "Prism queues tasks in dependency order — schema before routes, routes before tests. Nothing runs out of order." },
-            ].map((item) => (
-              <div key={item.label} style={{ padding: "20px 22px", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, background: "#111" }}>
-                <p style={{ fontSize: 14, fontWeight: 500, color: "#FAFAFA", marginBottom: 6 }}>{item.label}</p>
-                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button onClick={handleQueue} disabled={queueing || tasks.length === 0} style={btn(true, queueing || tasks.length === 0)}>
+                {queueing ? "Queueing..." : "Queue all tasks →"}
+              </button>
+              <button onClick={() => setAppState("input")} style={btn(false)}>
+                ← Edit spec
+              </button>
+            </div>
+          </>
+        )}
 
-      {/* CTA */}
-      <section style={{ padding: "100px 28px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <h2 style={{ fontFamily: serif, fontSize: 52, fontWeight: 400, letterSpacing: "-0.025em", lineHeight: 1.1, marginBottom: 36, color: "#FAFAFA" }}>
-            Try it <em style={{ fontStyle: "italic" }}>now.</em>
-          </h2>
-          <p style={{ fontSize: 17, color: "rgba(255,255,255,0.4)", lineHeight: 1.65, marginBottom: 36, maxWidth: 460 }}>
-            Paste any spec — a paragraph, a PRD, a list of requirements — and Prism will have tasks queued to Nimbus within seconds.
-          </p>
-          <Link href="/prism/try"
-            style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, fontWeight: 500, color: "#0A0A0A", background: "#FAFAFA", padding: "13px 28px", borderRadius: 9, textDecoration: "none" }}>
-            Try it out <ArrowRight size={14} />
-          </Link>
-        </div>
-      </section>
+        {appState === "running" && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <h2 style={{ fontSize: 20, color: C.text, fontWeight: 500 }}>
+                {allDone ? "All tasks complete" : "Running"}
+              </h2>
+              <span style={{ fontSize: 13, color: C.muted, fontFamily: "var(--font-jetbrains), monospace" }}>
+                {doneCount} of {queued.length} complete
+              </span>
+            </div>
 
-      {/* Footer */}
-      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "32px 28px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Link href="/" style={{ fontFamily: serif, fontSize: 16, fontStyle: "italic", color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>Nimbus</Link>
-          <p style={{ fontFamily: mono, fontSize: 12, color: "rgba(255,255,255,0.15)" }}>© 2026 Nimbus · MIT License</p>
-        </div>
-      </footer>
+            <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, marginBottom: 32, overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                width: `${queued.length > 0 ? (doneCount / queued.length) * 100 : 0}%`,
+                background: C.gold, borderRadius: 2, transition: "width 0.5s ease",
+              }} />
+            </div>
 
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 32 }}>
+              {queued.map(qt => {
+                const task = taskStatuses[qt.task_id];
+                const phase = task?.phase;
+                const done = phase === "done";
+                const failed = phase === "failed";
+                const active = phase && ACTIVE_PHASES.has(phase);
+                return (
+                  <div key={qt.task_id} style={{
+                    background: C.surface, border: `1px solid ${C.border}`,
+                    borderRadius: 10, padding: "14px 18px",
+                    display: "flex", alignItems: "flex-start", gap: 14,
+                  }}>
+                    <div style={{ width: 16, flexShrink: 0, paddingTop: 2 }}>
+                      {done ? (
+                        <span style={{ color: C.green, fontSize: 14 }}>✓</span>
+                      ) : failed ? (
+                        <span style={{ color: C.red, fontSize: 14 }}>×</span>
+                      ) : active ? (
+                        <div style={{
+                          width: 8, height: 8, borderRadius: "50%", background: C.gold,
+                          animation: "pulse 2s ease-in-out infinite",
+                        }} />
+                      ) : (
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.15)" }} />
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, color: C.text, fontFamily: "var(--font-jetbrains), monospace", lineHeight: 1.5 }}>
+                        {qt.description}
+                      </div>
+                      {failed && task?.error && (
+                        <div style={{ fontSize: 12, color: C.red, marginTop: 4 }}>{task.error}</div>
+                      )}
+                    </div>
+                    {done && task?.pr_url && (
+                      <a
+                        href={task.pr_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: 12, color: C.green, fontFamily: "var(--font-jetbrains), monospace",
+                          textDecoration: "none", borderBottom: `1px solid ${C.green}`, flexShrink: 0,
+                        }}
+                      >
+                        PR ↗
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {allDone && (
+              <button onClick={resetAll} style={btn(true)}>
+                Run another spec
+              </button>
+            )}
+          </>
+        )}
+
+      </div>
     </div>
   );
 }
