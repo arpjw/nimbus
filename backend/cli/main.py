@@ -115,14 +115,73 @@ def default(
 
 
 @app.command()
+def agents(
+    category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category"),
+    info: Optional[str] = typer.Option(None, "--info", help="Show full info for a named agent"),
+):
+    """List all built-in agents, or get info on a specific one."""
+    from services.agent_library import list_agents, get_agent
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich import box
+    from cli.renderer import console, GOLD, FAINT, GREEN
+
+    if info:
+        agent = get_agent(info)
+        if not agent:
+            console.print(f"  [{FAINT}]agent not found: {info}[/{FAINT}]")
+            raise typer.Exit()
+        content = (
+            f"[bold white]{agent.name}[/bold white]  [{FAINT}]{agent.category}[/{FAINT}]\n\n"
+            f"{agent.full_description}\n\n"
+            f"[{FAINT}]retrieval   [/][white]{agent.retrieval_strategy}[/white]\n"
+            f"[{FAINT}]estimated   [/][white]{agent.estimated_prs}[/white]\n"
+            f"[{FAINT}]verify      [/][white]{agent.verification_command[:60]}[/white]"
+        )
+        console.print(Panel(content, border_style=FAINT, box=box.ROUNDED))
+        return
+
+    agents_list = list_agents(category)
+    console.print()
+
+    by_cat: dict = {}
+    for a in agents_list:
+        by_cat.setdefault(a.category, []).append(a)
+
+    for cat, cat_agents in by_cat.items():
+        console.print(f"  [{FAINT}]{cat.upper()}[/{FAINT}]")
+        table = Table.grid(padding=(0, 3))
+        table.add_column(style=f"bold {GOLD}", width=26)
+        table.add_column(style=FAINT)
+        for a in cat_agents:
+            table.add_row(a.name, a.description)
+        console.print("  ", table)
+        console.print()
+
+    console.print(f"  [{FAINT}]run: nimbus run --agent <name>[/{FAINT}]")
+    console.print(f"  [{FAINT}]info: nimbus agents --info <name>[/{FAINT}]\n")
+
+
+@app.command()
 def run(
-    task: str = typer.Argument(..., help='Task description, e.g. "fix the login bug"'),
+    task: Optional[str] = typer.Argument(None, help='Task description, e.g. "fix the login bug"'),
+    agent: Optional[str] = typer.Option(None, "--agent", help="Run a built-in agent by name"),
     backend: str = typer.Option("http://localhost:8000", help="Nimbus backend URL"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
     api_key: Optional[str] = typer.Option(None, help="Nimbus API key (defaults to NIMBUS_API_KEY)"),
     skill: Optional[str] = typer.Option(None, help="Apply a named skill to this task"),
 ):
     """Submit a task to the Nimbus backend agent."""
+    if agent and not task:
+        from services.agent_library import get_agent as _get_agent
+        ag = _get_agent(agent)
+        if not ag:
+            print(Fore.RED + f"Unknown agent: {agent}", file=sys.stderr)
+            raise typer.Exit(1)
+        task = ag.full_description
+    if not task:
+        print(Fore.RED + "Provide a task description or use --agent <name>", file=sys.stderr)
+        raise typer.Exit(1)
     asyncio.run(_run_remote(task, backend, yes, api_key, skill))
 
 

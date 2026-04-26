@@ -13,6 +13,7 @@ from api.routes.linear import router as linear_api_router
 from api.routes.automations import router as automations_router
 from api.routes.skills import router as skills_router
 from api.routes.prism import router as prism_router
+from api.routes.agents import router as agents_router
 from github_app.webhooks import router as github_router
 from linear_app.webhooks import linear_router
 from services.automation_engine import AutomationEngine
@@ -408,3 +409,4 @@ app.include_router(linear_router)
 app.include_router(automations_router)
 app.include_router(skills_router)
 app.include_router(prism_router)
+app.include_router(agents_router)
