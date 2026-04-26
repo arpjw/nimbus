@@ -2,10 +2,12 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from database import get_session
 from services.auth import ApiKey, generate_api_key, require_api_key
+from api.routes.auth import get_current_user
+from models.user import User
 
 router = APIRouter(prefix="/keys", tags=["keys"])
 
@@ -36,7 +38,7 @@ async def generate_key(body: GenerateKeyRequest, session: Session = Depends(get_
     }
 
 
-@router.get("/me")
+@router.get("/current")
 async def get_me(api_key: ApiKey = Depends(require_api_key)):
     from config import settings
     return {
@@ -48,6 +50,15 @@ async def get_me(api_key: ApiKey = Depends(require_api_key)):
         "monthly_limit": settings.free_tier_monthly_limit if api_key.tier == "free" else None,
         "last_used_at": api_key.last_used_at,
     }
+
+
+@router.get("/me")
+async def get_my_keys(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    keys = session.exec(select(ApiKey).where(ApiKey.user_id == current_user.id)).all()
+    return [{"id": k.id, "name": k.name, "key_preview": k.key[:8] + "...", "created_at": k.created_at} for k in keys]
 
 
 @router.delete("/{key_id}")

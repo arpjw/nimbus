@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState, useRef, ReactNode } from "react";
+import { useEffect, useState, useRef, ReactNode, Suspense } from "react";
+import NavAuth from "@/components/NavAuth";
 
 const serif = "var(--font-serif,'Georgia',serif)";
 const sans  = "var(--font-sans,system-ui,sans-serif)";
@@ -208,10 +209,11 @@ function Navbar() {
             ))}
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <a href="https://api.get-nimbus.com/keys/generate" style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>Sign in</a>
-          <a href="/download" style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.bg, background: C.text, padding: "8px 20px", borderRadius: 999, textDecoration: "none" }}>Download</a>
-        </div>
+        <Suspense fallback={
+          <a href="/login" style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>Sign in</a>
+        }>
+          <NavAuth />
+        </Suspense>
       </div>
     </nav>
   );

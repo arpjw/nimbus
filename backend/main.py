@@ -5,6 +5,7 @@ from starlette.responses import HTMLResponse
 
 from config import settings
 from database import init_db
+from api.routes.auth import router as auth_router
 from api.routes.keys import router as keys_router
 from api.routes.tasks import router as tasks_router, review_router, test_router, rules_router
 from api.routes.repos import ws_router, repo_router
@@ -395,6 +396,7 @@ def health():
     return {"status": "ok", "version": "0.1.0"}
 
 
+app.include_router(auth_router)
 app.include_router(keys_router)
 app.include_router(tasks_router)
 app.include_router(review_router)

@@ -14,11 +14,12 @@ class ApiKey(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     key: str = Field(unique=True, index=True)
     name: str
-    owner_email: str
+    owner_email: str = Field(default="")
     tier: str = "free"
     task_count_month: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_used_at: Optional[datetime] = None
+    user_id: Optional[str] = Field(default=None, foreign_key="user.id")
 
 
 def generate_api_key() -> tuple[str, str]:
