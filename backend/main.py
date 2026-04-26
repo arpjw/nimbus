@@ -389,6 +389,8 @@ async def custom_swagger_ui():
 @app.on_event("startup")
 async def startup():
     init_db()
+    from services.skills import migrate_skills_table
+    migrate_skills_table()
     SkillsService().seed_builtins()
     AutomationEngine().schedule_all()
 

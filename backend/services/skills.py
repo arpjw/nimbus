@@ -77,16 +77,44 @@ class SkillsService:
             return True
 
     def seed_builtins(self) -> None:
-        with Session(engine) as session:
-            for b in _BUILTINS:
-                existing = session.exec(
-                    select(Skill).where(Skill.name == b["name"], Skill.owner_key_id.is_(None))
-                ).first()
-                if not existing:
-                    session.add(Skill(
-                        name=b["name"],
-                        owner_key_id=None,
-                        description=b["description"],
-                        system_prompt_addition=b["system_prompt_addition"],
-                    ))
-            session.commit()
+        try:
+            with Session(engine) as session:
+                for b in _BUILTINS:
+                    existing = session.exec(
+                        select(Skill).where(Skill.name == b["name"], Skill.owner_key_id.is_(None))
+                    ).first()
+                    if not existing:
+                        session.add(Skill(
+                            name=b["name"],
+                            owner_key_id=None,
+                            description=b["description"],
+                            system_prompt_addition=b["system_prompt_addition"],
+                        ))
+                session.commit()
+        except Exception as e:
+            print(f"Warning: seed_builtins failed (schema migration needed): {e}")
+            return
+
+
+def migrate_skills_table():
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            new_columns = [
+                ("is_public", "BOOLEAN DEFAULT FALSE"),
+                ("author_id", "VARCHAR"),
+                ("author_username", "VARCHAR"),
+                ("tags", "VARCHAR"),
+                ("install_count", "INTEGER DEFAULT 0"),
+                ("star_count", "INTEGER DEFAULT 0"),
+                ("version", "VARCHAR DEFAULT '1.0.0'"),
+            ]
+            for col_name, col_def in new_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE skill ADD COLUMN {col_name} {col_def}"))
+                    conn.commit()
+                    print(f"Migrated: added column {col_name} to skill table")
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"Warning: skills table migration failed: {e}")
