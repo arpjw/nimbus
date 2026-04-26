@@ -245,9 +245,9 @@ export default function DownloadPage() {
           <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 24 }}>{"What's next"}</p>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 12 }}>
             {[
-              { title: "Run your first task", desc: "Step-by-step walkthrough of the full Nimbus REPL from welcome screen to merged PR.", href: "https://docs.get-nimbus.com/getting-started/first-task" },
-              { title: "Explore built-in agents", desc: "20 pre-configured agents for security, testing, docs, and more. No configuration needed.", href: "https://docs.get-nimbus.com/agents/overview" },
-              { title: "Connect integrations", desc: "Set up GitHub App, Slack slash commands, Linear webhooks, and VS Code extension.", href: "https://docs.get-nimbus.com/integrations/github-app" },
+              { title: "Explore built-in agents", desc: "20 pre-configured agents for security, testing, docs, and more. Run any agent with nimbus run --agent <name>.", href: "https://docs.get-nimbus.com/agents/overview" },
+              { title: "Install the Chrome Extension", desc: "Review with Nimbus on every GitHub PR. Implement with Nimbus on every issue. No terminal needed.", href: "https://github.com/arpjw/nimbus-chrome" },
+              { title: "Set up GitHub Actions", desc: "Automatic code review on every PR, security scanning, test generation — all from CI.", href: "https://docs.get-nimbus.com/integrations/github-actions" },
             ].map(card => (
               <a key={card.title} href={card.href} target="_blank" rel="noopener noreferrer" style={{ display: "block", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "20px 22px", background: "#0d0d0d", textDecoration: "none", transition: "border-color 0.15s" }}>
                 <p style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 8 }}>{card.title}</p>

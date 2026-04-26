@@ -29,27 +29,36 @@ function FadeUp({ children, delay = 0 }: { children: ReactNode; delay?: number }
 }
 
 const LINES = [
-  { d: 0,    t: "$ nimbus run 'migrate auth to JWT'", c: C.text },
-  { d: 700,  t: "", c: "" },
-  { d: 800,  t: "  cloning   github.com/acme/api", c: "rgba(255,255,255,0.2)" },
-  { d: 1400, t: "  indexing  847 files · 12,304 chunks", c: "rgba(255,255,255,0.2)" },
-  { d: 2100, t: "  planning  via claude opus...", c: "rgba(255,255,255,0.2)" },
-  { d: 2900, t: "", c: "" },
-  { d: 3000, t: "  plan", c: "rgba(255,255,255,0.4)" },
-  { d: 3200, t: "  ├─ modify  src/middleware/auth.ts", c: "rgba(255,255,255,0.3)" },
-  { d: 3350, t: "  ├─ modify  src/routes/login.ts", c: "rgba(255,255,255,0.3)" },
-  { d: 3500, t: "  └─ create  src/lib/jwt.ts", c: "rgba(255,255,255,0.3)" },
-  { d: 3700, t: "", c: "" },
-  { d: 3800, t: "  confidence  ████████░░  92%  ·  low ambiguity", c: C.gold },
-  { d: 4400, t: "  Proceed with 3 changes? [y/N] y", c: "rgba(255,255,255,0.5)" },
-  { d: 5000, t: "", c: "" },
-  { d: 5100, t: "  write  src/lib/jwt.ts                +42", c: C.green },
-  { d: 5400, t: "  write  src/middleware/auth.ts        +18", c: C.green },
-  { d: 5700, t: "  write  src/routes/login.ts           +9",  c: C.green },
-  { d: 6200, t: "", c: "" },
-  { d: 6300, t: "  tsc ✓   eslint ✓", c: "rgba(255,255,255,0.4)" },
-  { d: 6800, t: "  PR #47 opened  ↗  acme/api/pull/47", c: C.text },
-  { d: 7400, t: "  done in 18.4s", c: "rgba(255,255,255,0.3)" },
+  { d: 0,    t: "$ nimbus",                                        c: C.text },
+  { d: 600,  t: "",                                                 c: "" },
+  { d: 700,  t: "  ██╗   ██╗██╗███╗   ███╗",                      c: C.gold },
+  { d: 750,  t: "  ╚██╗ ██╔╝██║████╗ ████║",                      c: C.gold },
+  { d: 800,  t: "   ╚████╔╝ ██║██╔████╔██║",                       c: C.gold },
+  { d: 900,  t: "",                                                 c: "" },
+  { d: 1000, t: "  autonomous software engineering · v1.2.0",      c: "rgba(255,255,255,0.2)" },
+  { d: 1100, t: "  repo    github.com/acme/api · 847 files ready", c: "rgba(255,255,255,0.2)" },
+  { d: 1300, t: "",                                                 c: "" },
+  { d: 1400, t: "  nimbus › run 'migrate auth to JWT'",            c: C.text },
+  { d: 2000, t: "",                                                 c: "" },
+  { d: 2100, t: "  confidence  ████████░░  92%  ·  low ambiguity", c: C.gold },
+  { d: 2700, t: "  Proceed with 3 changes? [y/N] y",               c: "rgba(255,255,255,0.5)" },
+  { d: 3300, t: "",                                                 c: "" },
+  { d: 3400, t: "  write  src/lib/jwt.ts                +42",      c: C.green },
+  { d: 3700, t: "  write  src/middleware/auth.ts        +18",      c: C.green },
+  { d: 4000, t: "  write  src/routes/login.ts           +9",       c: C.green },
+  { d: 4400, t: "",                                                 c: "" },
+  { d: 4500, t: "  tsc ✓   eslint ✓   47 tests pass",             c: "rgba(255,255,255,0.4)" },
+  { d: 5000, t: "  PR #47 opened  ↗  acme/api/pull/47",            c: C.text },
+  { d: 5500, t: "",                                                 c: "" },
+  { d: 5600, t: "  nimbus › search 'JWT validation'",              c: C.text },
+  { d: 6100, t: "  ├─ src/lib/jwt.ts              score 0.97",     c: C.muted },
+  { d: 6300, t: "  └─ src/middleware/auth.ts      score 0.91",     c: C.muted },
+  { d: 6600, t: "",                                                 c: "" },
+  { d: 6700, t: "  nimbus › chat",                                  c: C.text },
+  { d: 7000, t: "  you › how does the new JWT auth work?",         c: "rgba(255,255,255,0.5)" },
+  { d: 7500, t: "  JWT is issued in src/lib/jwt.ts:12 on login,",  c: C.muted },
+  { d: 7700, t: "  verified in middleware/auth.ts:18. 30 day TTL.", c: C.muted },
+  { d: 8000, t: "  done in 34.2s",                                  c: "rgba(255,255,255,0.25)" },
 ];
 
 function Terminal() {
@@ -245,7 +254,7 @@ export default function Page() {
             <h2 style={{ fontFamily: serif, fontSize: 34, fontWeight: 400, letterSpacing: "-0.02em", marginBottom: 8, color: C.text }}>Use Nimbus everywhere you work</h2>
             <p style={{ fontFamily: sans, fontSize: 16, color: C.muted, marginBottom: 48 }}>A unified engineering agent across every surface.</p>
           </FadeUp>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2,1fr)", gap: 12 }}>
 
             {/* Terminal card */}
             <FadeUp delay={0}>
@@ -347,6 +356,49 @@ export default function Page() {
                   <p style={{ fontFamily: sans, fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 18 }}>Trigger tasks from your browser, phone, or Slack. Dashboard shows live task history, memory, and PR results.</p>
                   <a href="https://get-nimbus.com/dashboard" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: sans, fontSize: 13, fontWeight: 500, color: C.bg, background: C.text, padding: "8px 18px", borderRadius: 999, textDecoration: "none" }}>
                     Open dashboard →
+                  </a>
+                </div>
+              </div>
+            </FadeUp>
+
+            {/* Chrome Extension card */}
+            <FadeUp delay={240}>
+              <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden", background: "#0d0d0d", display: "flex", flexDirection: "column", height: "100%" }}>
+                <div style={{ background: "#0a0a0a", padding: "20px 18px 0", minHeight: 240, overflow: "hidden" }}>
+                  <div style={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
+                    <WinBar title="github.com / acme / api / pull / 52" />
+                    <div style={{ padding: "12px 14px", fontFamily: mono, fontSize: 11 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: 4, background: "rgba(10,10,10,0.9)", border: "1px solid rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ color: "#FAFAFA", fontWeight: 800, fontSize: 9 }}>N</span>
+                        </div>
+                        <span style={{ color: C.muted, fontSize: 11 }}>Review with Nimbus</span>
+                        <span style={{ marginLeft: "auto", color: C.gold, fontSize: 10 }}>clicked</span>
+                      </div>
+                      {[
+                        { label: "submitted", done: true },
+                        { label: "indexing", done: true },
+                        { label: "reviewing", active: true },
+                        { label: "commenting", done: false },
+                      ].map((p, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: p.done ? C.green : (p as any).active ? C.gold : "rgba(255,255,255,0.1)", flexShrink: 0 }} />
+                          <span style={{ fontSize: 11, color: p.done ? "rgba(255,255,255,0.4)" : (p as any).active ? "#FAFAFA" : "rgba(255,255,255,0.15)" }}>{p.label}</span>
+                          {(p as any).active && <span style={{ fontSize: 10, color: C.gold }}>analyzing diff...</span>}
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 10, padding: "6px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 5, border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <span style={{ color: C.gold, fontSize: 10 }}>review </span>
+                        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>posted as PR comment</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ padding: "22px 22px 24px" }}>
+                  <p style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>Chrome Extension</p>
+                  <p style={{ fontFamily: sans, fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 18 }}>One button on every GitHub PR and issue. Review any PR or implement any issue without leaving your browser.</p>
+                  <a href="https://github.com/arpjw/nimbus-chrome" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: sans, fontSize: 13, fontWeight: 500, color: C.bg, background: C.text, padding: "8px 18px", borderRadius: 999, textDecoration: "none" }}>
+                    Install extension →
                   </a>
                 </div>
               </div>
@@ -464,10 +516,10 @@ export default function Page() {
           <FadeUp delay={60}>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)", gap: isMobile ? 8 : 10 }}>
               {([
+                { v: "1.2", d: "Apr 26, 2026", t: "nimbus chat, diff, search, pre-commit hooks" },
+                { v: "1.2", d: "Apr 26, 2026", t: "Chrome Extension, GitHub Actions, SDKs" },
                 { v: "1.1", d: "Apr 26, 2026", t: "Interactive terminal + 20 built-in agents" },
-                { v: "1.1", d: "Apr 26, 2026", t: "pip install nimbus-ai on PyPI" },
-                { v: "1.0", d: "Apr 25, 2026", t: "Slack, Linear, automations shipped" },
-                { v: "1.0", d: "Apr 25, 2026", t: "Self-improving PR reviewer" },
+                { v: "1.0", d: "Apr 25, 2026", t: "Self-improving PR reviewer + GitHub App" },
               ] as { v: string; d: string; t: string }[]).map((entry, i) => (
                 <div key={i} style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "18px 20px", background: "#080808" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -517,9 +569,9 @@ export default function Page() {
               <p style={{ fontFamily: sans, fontSize: 13, color: "rgba(255,255,255,0.3)", lineHeight: 1.65, maxWidth: 220 }}>Autonomous software engineering. From task description to merged pull request.</p>
             </div>
             {([
-              { title: "Product", links: [["Dashboard", "https://get-nimbus.com/dashboard"], ["Prism", "https://get-nimbus.com/prism"], ["Mobile App", "https://get-nimbus.com/app"], ["API", "https://api.get-nimbus.com/docs"]] },
+              { title: "Product", links: [["Dashboard", "https://get-nimbus.com/dashboard"], ["Marketplace", "https://get-nimbus.com/marketplace"], ["Prism", "https://get-nimbus.com/prism"], ["Mobile App", "https://get-nimbus.com/app"], ["API", "https://api.get-nimbus.com/docs"]] },
               { title: "Resources", links: [["Docs", "https://docs.get-nimbus.com"], ["Changelog", "#changelog"], ["PyPI", "https://pypi.org/project/nimbus-ai"], ["Status", "https://api.get-nimbus.com/health"]] },
-              { title: "Connect", links: [["GitHub", "https://github.com/arpjw/nimbus"], ["VS Code", "https://github.com/arpjw/nimbus-vscode"], ["aryasomu.com", "https://aryasomu.com"]] },
+              { title: "Connect", links: [["GitHub", "https://github.com/arpjw/nimbus"], ["Chrome Extension", "https://github.com/arpjw/nimbus-chrome"], ["VS Code", "https://github.com/arpjw/nimbus-vscode"], ["aryasomu.com", "https://aryasomu.com"]] },
             ] as { title: string; links: [string, string][] }[]).map(col => (
               <div key={col.title}>
                 <p style={{ fontFamily: mono, fontSize: 11, color: "rgba(255,255,255,0.2)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>{col.title}</p>
