@@ -134,6 +134,106 @@ def chat():
 
 
 @app.command()
+def diff(
+    rev_range: str = typer.Argument(None, help="Git revision range e.g. HEAD~3..HEAD or main..feature"),
+    staged: bool = typer.Option(False, "--staged", help="Review staged changes"),
+    severity: str = typer.Option("medium", "--severity", help="Minimum severity to show: low|medium|high"),
+    exit_code: bool = typer.Option(False, "--exit-code", help="Exit 1 if issues found (for CI use)"),
+):
+    """Review any diff -- pipe from stdin or pass a revision range."""
+    import subprocess, anthropic
+    from cli.renderer import console, GOLD, GREEN, RED, FAINT
+    from rich.panel import Panel
+    from rich import box
+
+    diff_text = ""
+    if not sys.stdin.isatty():
+        diff_text = sys.stdin.read()
+    elif staged:
+        result = subprocess.run(["git", "diff", "--cached"], capture_output=True, text=True, cwd=str(Path.cwd()))
+        diff_text = result.stdout
+    elif rev_range:
+        result = subprocess.run(["git", "diff", rev_range], capture_output=True, text=True, cwd=str(Path.cwd()))
+        diff_text = result.stdout
+    else:
+        result = subprocess.run(["git", "diff", "HEAD"], capture_output=True, text=True, cwd=str(Path.cwd()))
+        diff_text = result.stdout
+
+    if not diff_text.strip():
+        console.print(f"  [{FAINT}]no diff to review[/{FAINT}]")
+        raise typer.Exit()
+
+    client = anthropic.Anthropic()
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        messages=[{
+            "role": "user",
+            "content": f"""Review this code diff. For each issue found, format as:
+SEVERITY: high|medium|low
+FILE: filename:line
+ISSUE: one sentence description
+SUGGESTION: one sentence fix
+
+Then end with:
+OVERALL: excellent|good|needs-work|major-issues
+SUMMARY: one sentence
+
+Diff:
+{diff_text[:6000]}"""
+        }]
+    )
+
+    text = response.content[0].text
+    lines = text.strip().split("\n")
+    issues = []
+    current = {}
+    overall = "good"
+    summary = ""
+
+    for line in lines:
+        if line.startswith("SEVERITY:"):
+            if current:
+                issues.append(current)
+            current = {"severity": line.split(":", 1)[1].strip()}
+        elif line.startswith("FILE:") and current:
+            current["file"] = line.split(":", 1)[1].strip()
+        elif line.startswith("ISSUE:") and current:
+            current["issue"] = line.split(":", 1)[1].strip()
+        elif line.startswith("SUGGESTION:") and current:
+            current["suggestion"] = line.split(":", 1)[1].strip()
+        elif line.startswith("OVERALL:"):
+            if current:
+                issues.append(current)
+                current = {}
+            overall = line.split(":", 1)[1].strip()
+        elif line.startswith("SUMMARY:"):
+            summary = line.split(":", 1)[1].strip()
+
+    severity_map = {"low": 1, "medium": 2, "high": 3}
+    min_sev = severity_map.get(severity, 2)
+    filtered = [i for i in issues if severity_map.get(i.get("severity", "low"), 1) >= min_sev]
+
+    console.print()
+    if filtered:
+        for issue in filtered:
+            sev = issue.get("severity", "medium")
+            icon = f"[{RED}]✗[/{RED}]" if sev == "high" else f"[yellow]⚠[/yellow]" if sev == "medium" else f"[{FAINT}]·[/{FAINT}]"
+            console.print(f"  {icon}  [{FAINT}]{issue.get('file','')}[/{FAINT}]")
+            console.print(f"     {issue.get('issue','')}")
+            if issue.get("suggestion"):
+                console.print(f"     [{FAINT}]{issue.get('suggestion','')}[/{FAINT}]")
+            console.print()
+
+    overall_color = GREEN if overall in ("excellent", "good") else RED
+    console.print(f"  [{FAINT}]overall[/{FAINT}]  [{overall_color}]{overall}[/{overall_color}]" + (f"  [{FAINT}]{summary}[/{FAINT}]" if summary else ""))
+    console.print()
+
+    if exit_code and filtered:
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def agents(
     category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category"),
     info: Optional[str] = typer.Option(None, "--info", help="Show full info for a named agent"),
