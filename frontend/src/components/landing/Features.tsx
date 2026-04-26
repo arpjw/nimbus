@@ -94,13 +94,13 @@ export function Features() {
         {/* Row 3: three equal */}
         <div className="grid grid-cols-3 gap-px bg-border mb-px">
           <FeatureCell f={FEATURES[5]} span={1} />
+          <FeatureCell f={FEATURES[6]} span={1} />
           <FeatureCell f={FEATURES[7]} span={1} />
-          <FeatureCell f={FEATURES[8]} span={1} />
         </div>
 
         {/* Row 4: full width */}
         <div className="grid grid-cols-3 gap-px bg-border">
-          <FeatureCell f={FEATURES[6]} span={3} horizontal />
+          <FeatureCell f={FEATURES[8]} span={3} horizontal />
         </div>
       </div>
     </section>
