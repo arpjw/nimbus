@@ -3,42 +3,63 @@ const FEATURES = [
     n: "01",
     label: "Retrieval",
     title: "Hybrid\ncode search",
-    desc: "Voyage AI's voyage-code-2 embeddings fused with BM25 keyword matching via Reciprocal Rank Fusion. Captures semantic intent and exact symbol names simultaneously — across one repository or many.",
+    desc: "voyage-code-2 embeddings fused with BM25 keyword matching via Reciprocal Rank Fusion. AST-aware chunking via tree-sitter keeps functions and classes intact. Retrieves the right context across one repository or many.",
     wide: true,
   },
   {
     n: "02",
     label: "Planning",
     title: "Grounded\nplans",
-    desc: "Claude Opus reasons over retrieved context to produce a file-level change plan before a single line is written.",
+    desc: "Claude Opus reasons over retrieved context to produce a file-level change plan before a single line is written. The plan is shown for approval before execution begins.",
     wide: false,
   },
   {
     n: "03",
     label: "Implementation",
     title: "Agentic\ntool-use loop",
-    desc: "Claude Sonnet reads current file contents, writes targeted changes, and verifies its output — iterating rather than generating in a single pass.",
+    desc: "Claude Sonnet reads files, writes changes, and verifies output through a structured loop. Plans with six or more changes run across parallel workers simultaneously.",
     wide: false,
   },
   {
     n: "04",
     label: "Verification",
     title: "Your actual\ntest suite",
-    desc: "Runs pytest, tsc, eslint, or cargo. On failure, reformulates the plan with error output as context and tries again.",
+    desc: "Runs pytest, tsc, eslint, or cargo. On failure, reformulates the plan with error output as context and tries again — up to five iterations.",
     wide: false,
   },
   {
     n: "05",
     label: "Review",
     title: "Self-review\nand response",
-    desc: "After opening a PR, Nimbus retrieves its own diff, posts a structured critique, then monitors for human comments and responds with technical precision.",
-    wide: true,
+    desc: "After opening a PR, Nimbus retrieves its own diff, posts a structured critique with a verdict, then monitors for human comments and responds with technical precision.",
+    wide: false,
   },
   {
     n: "06",
-    label: "Scope",
-    title: "Multi-repo\nworkspaces",
-    desc: "Index multiple repositories into one workspace. Retrieve context across service boundaries for tasks that span codebases.",
+    label: "Memory",
+    title: "Persistent\ncodebase memory",
+    desc: "After every task, Nimbus writes a structured memory entry — conventions, patterns, outcomes — retrieved on future tasks. Every run on the same repo is better informed than the last.",
+    wide: false,
+  },
+  {
+    n: "07",
+    label: "GitHub",
+    title: "Native\nGitHub integration",
+    desc: "Comment /nimbus on any PR or issue. Apply a nimbus label to trigger fully autonomous issue-to-PR execution. Nimbus posts progress and results back to the thread.",
+    wide: true,
+  },
+  {
+    n: "08",
+    label: "CLI",
+    title: "Run from\nanywhere",
+    desc: "nimbus run, nimbus review, nimbus issue, nimbus test — from any git repository. Auto-detects the remote, registers the workspace, streams live output to the terminal.",
+    wide: false,
+  },
+  {
+    n: "09",
+    label: "Hosted",
+    title: "Hosted\nbackend",
+    desc: "api.get-nimbus.com is live. Generate an API key and run tasks without any local setup. Free tier for public repos, no installation required.",
     wide: false,
   },
 ];
@@ -47,8 +68,6 @@ export function Features() {
   return (
     <section className="py-24 px-6" id="features">
       <div className="max-w-5xl mx-auto">
-
-        {/* Section header */}
         <div className="flex items-baseline gap-8 mb-16">
           <h2
             className="font-display font-medium italic"
@@ -61,21 +80,27 @@ export function Features() {
 
         {/* Row 1: wide + narrow */}
         <div className="grid grid-cols-3 gap-px bg-border mb-px">
-          {/* Wide — spans 2 */}
           <FeatureCell f={FEATURES[0]} span={2} tall />
           <FeatureCell f={FEATURES[1]} span={1} tall />
         </div>
 
-        {/* Row 2: narrow + narrow + wide */}
+        {/* Row 2: three equal */}
         <div className="grid grid-cols-3 gap-px bg-border mb-px">
           <FeatureCell f={FEATURES[2]} span={1} />
           <FeatureCell f={FEATURES[3]} span={1} />
           <FeatureCell f={FEATURES[4]} span={1} />
         </div>
 
-        {/* Row 3: full */}
+        {/* Row 3: three equal */}
+        <div className="grid grid-cols-3 gap-px bg-border mb-px">
+          <FeatureCell f={FEATURES[5]} span={1} />
+          <FeatureCell f={FEATURES[7]} span={1} />
+          <FeatureCell f={FEATURES[8]} span={1} />
+        </div>
+
+        {/* Row 4: full width */}
         <div className="grid grid-cols-3 gap-px bg-border">
-          <FeatureCell f={FEATURES[5]} span={3} horizontal />
+          <FeatureCell f={FEATURES[6]} span={3} horizontal />
         </div>
       </div>
     </section>
@@ -102,7 +127,6 @@ function FeatureCell({
         minHeight: tall ? "280px" : horizontal ? "auto" : "240px",
       }}
     >
-      {/* Giant decorative number */}
       <div
         aria-hidden="true"
         className="absolute select-none pointer-events-none font-display font-medium"
@@ -111,7 +135,6 @@ function FeatureCell({
           lineHeight: 1,
           color: "rgba(180,168,152,0.13)",
           right: horizontal ? "auto" : "-12px",
-          left: horizontal ? "auto" : "auto",
           bottom: "-20px",
           ...(horizontal ? { right: "32px", bottom: "-16px" } : {}),
         }}
@@ -120,12 +143,10 @@ function FeatureCell({
       </div>
 
       <div className={`relative z-10 ${horizontal ? "flex items-start gap-16" : "flex flex-col justify-between h-full"}`}>
-        {/* Top: label */}
         <div>
           <span className="font-mono text-[10px] uppercase tracking-widest text-faint block mb-6">
             {f.label}
           </span>
-
           <h3
             className="font-display font-medium leading-tight"
             style={{
@@ -137,7 +158,6 @@ function FeatureCell({
           </h3>
         </div>
 
-        {/* Desc */}
         <p
           className="text-muted leading-relaxed"
           style={{
@@ -150,7 +170,6 @@ function FeatureCell({
         </p>
       </div>
 
-      {/* Hover accent line */}
       <div
         className="absolute bottom-0 left-0 right-0 h-px transition-all duration-300 group-hover:opacity-100 opacity-0"
         style={{ background: "#8E2D2D" }}

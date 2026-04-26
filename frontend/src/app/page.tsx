@@ -6,15 +6,21 @@ import { Workflow } from "@/components/landing/Workflow";
 
 const TICKER_ITEMS = [
   "voyage-code-2 embeddings",
+  "AST-aware chunking",
   "BM25 keyword retrieval",
   "Reciprocal Rank Fusion",
   "Claude Opus planning",
   "Claude Sonnet implementation",
-  "Agentic tool-use loop",
-  "Multi-repository workspaces",
-  "Self-reviewing PR loop",
+  "Parallel multi-agent execution",
+  "Persistent codebase memory",
   "Iterative verification",
-  "ChromaDB vector store",
+  "Diff preview gate",
+  "Self-reviewing PR loop",
+  "GitHub App integration",
+  "Issue-to-PR pipeline",
+  "Test generation",
+  "Hosted at api.get-nimbus.com",
+  "CLI — nimbus run",
 ];
 
 export default function Landing() {
@@ -30,6 +36,14 @@ export default function Landing() {
           <div className="flex items-center gap-7">
             <a href="#features" className="text-sm text-muted hover:text-text transition-colors">Features</a>
             <a href="#workflow" className="text-sm text-muted hover:text-text transition-colors">Workflow</a>
+            <a
+              href="https://api.get-nimbus.com/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-muted hover:text-text transition-colors"
+            >
+              API
+            </a>
             <a
               href="https://github.com/arpjw/nimbus"
               target="_blank"
@@ -114,9 +128,9 @@ export default function Landing() {
           {/* Stats bar */}
           <div className="grid grid-cols-3 gap-0 mt-16 border-t border-border">
             {[
-              { label: "Embedding model", value: "voyage-code-2", sub: "Purpose-built for code" },
-              { label: "Retrieval method", value: "BM25 + RRF", sub: "Keyword + semantic fusion" },
-              { label: "Repository scope", value: "Multi-repo", sub: "Unified workspace indexing" },
+              { label: "Embedding model", value: "voyage-code-2", sub: "AST-aware, purpose-built for code" },
+              { label: "Retrieval", value: "BM25 + RRF", sub: "Keyword + semantic fusion" },
+              { label: "Hosted at", value: "api.get-nimbus.com", sub: "Free tier, no setup required" },
             ].map((s, i) => (
               <div key={s.label} className={`py-8 ${i > 0 ? "pl-8 border-l border-border" : ""} ${i < 2 ? "pr-8" : ""}`}>
                 <p className="font-mono text-[10px] text-faint uppercase tracking-widest mb-2">{s.label}</p>
@@ -199,17 +213,17 @@ export default function Landing() {
               className="font-mono text-[13px] leading-relaxed border border-border rounded-sm px-5 py-4"
               style={{ background: "#16120D", color: "#C8BFB0" }}
             >
-              <p style={{ color: "#5C5040" }}># clone and install</p>
-              <p>git clone github.com/arpjw/nimbus</p>
-              <p>cd nimbus/backend</p>
-              <p>pip install -r requirements.txt</p>
+              <p style={{ color: "#5C5040" }}># install the CLI</p>
+              <p>pip install -e ./backend</p>
               <p>&nbsp;</p>
-              <p style={{ color: "#5C5040" }}># configure</p>
-              <p>cp .env.example .env</p>
-              <p style={{ color: "#5C5040" }}># add ANTHROPIC_API_KEY, VOYAGE_API_KEY, GITHUB_TOKEN</p>
+              <p style={{ color: "#5C5040" }}># or use the hosted backend</p>
+              <p>nimbus run "add rate limiting" \</p>
+              <p>{"  "}--backend https://api.get-nimbus.com \</p>
+              <p>{"  "}--api-key nk_...</p>
               <p>&nbsp;</p>
-              <p style={{ color: "#5C5040" }}># start</p>
-              <p>uvicorn main:app --reload</p>
+              <p style={{ color: "#5C5040" }}># generate a free API key</p>
+              <p>curl -X POST \</p>
+              <p>{"  "}https://api.get-nimbus.com/keys/generate</p>
             </div>
           </div>
         </div>
