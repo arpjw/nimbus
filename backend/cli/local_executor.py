@@ -268,6 +268,48 @@ End with: FILE_CONTENT_END"""
 
         return file_snapshots
 
+    async def generate_pr_description(self, task_description: str, snapshots: dict, verify_results: dict) -> str:
+        diff_summary = []
+        for path, (old, new) in snapshots.items():
+            if old != new:
+                diff = list(difflib.unified_diff(old.splitlines(), new.splitlines(), lineterm=""))
+                added = sum(1 for l in diff if l.startswith("+") and not l.startswith("+++"))
+                removed = sum(1 for l in diff if l.startswith("-") and not l.startswith("---"))
+                diff_summary.append(f"- `{path}` (+{added} -{removed})")
+
+        verify_summary = ", ".join(
+            f"{tool} {'✓' if passed else '✗'}" for tool, passed in verify_results.items()
+        ) if verify_results else "no verification run"
+
+        response = await anthropic.AsyncAnthropic().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            messages=[{
+                "role": "user",
+                "content": f"""Write a concise GitHub PR description in Markdown for this change.
+
+Task: {task_description}
+
+Files changed:
+{chr(10).join(diff_summary)}
+
+Verification: {verify_summary}
+
+Format:
+## What changed
+[2-3 sentences describing what was done and why]
+
+## Files changed
+[the file list above, each with a one-line description of what changed in that file]
+
+## Testing
+[one sentence about verification results]
+
+Keep it factual and specific. No marketing language."""
+            }]
+        )
+        return response.content[0].text.strip()
+
     def verify(self) -> dict[str, bool]:
         render_phase("verifying")
         results = {}
@@ -384,6 +426,12 @@ End with: FILE_CONTENT_END"""
             sfx.play_success()
 
         recorder.record("verify", {"results": verify_results})
+
+        pr_description = await self.generate_pr_description(description, snapshots, verify_results)
+
+        from rich import box
+        from rich.panel import Panel
+        console.print(Panel(pr_description, title="[bold]PR description[/bold]", border_style=FAINT, box=box.ROUNDED))
 
         approval = prompt_approval("Commit?", "y/n/d to view diff")
         if approval == "d":
