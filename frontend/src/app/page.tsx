@@ -494,7 +494,7 @@ export default function Page() {
             <h2 style={{ fontFamily: serif, fontSize: 56, fontWeight: 400, letterSpacing: "-0.03em", lineHeight: 1.0, color: C.text, marginBottom: 48 }}>
               Try Nimbus <em style={{ fontStyle: "italic" }}>now.</em>
             </h2>
-            <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
               <a href="https://api.get-nimbus.com/keys/generate"
                 style={{ fontFamily: sans, fontSize: 15, fontWeight: 500, color: C.bg, background: C.text, padding: "13px 28px", borderRadius: 10, textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
                 Get started free <ArrowRight size={14} />
