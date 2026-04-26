@@ -18,8 +18,11 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nimbus — Autonomous SWE Agent",
-  description: "Nimbus plans, implements, and reviews code against real repositories — entirely on its own.",
+  title: "Nimbus",
+  description: "Autonomous software engineering, stratified.",
+  icons: {
+    icon: "/favicon.svg",
+  },
   openGraph: {
     title: "Nimbus",
     description: "Autonomous software engineering.",
