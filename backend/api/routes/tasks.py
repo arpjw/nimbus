@@ -42,6 +42,44 @@ async def review_endpoint(body: ReviewRequest):
     return {"pr_url": body.pr_url, "review": review, "verdict": verdict}
 
 
+async def create_task_internal(
+    workspace_id: str,
+    repo_id: str,
+    description: str,
+    session: Session,
+    api_key: ApiKey,
+    skill: str | None = None,
+    issue_number: int | None = None,
+    repo_full_name: str | None = None,
+) -> Task:
+    repo = session.get(Repo, repo_id)
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    await check_rate_limit(api_key)
+    task = Task(
+        workspace_id=workspace_id,
+        repo_id=repo_id,
+        description=description,
+        issue_number=issue_number,
+        repo_full_name=repo_full_name,
+    )
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    if api_key.id != "local":
+        api_key.task_count_month += 1
+        api_key.last_used_at = datetime.now(timezone.utc)
+        session.add(api_key)
+        session.commit()
+    queue = get_or_create_queue(task.id)
+    asyncio.create_task(run_task(task, repo, queue, issue_number=issue_number, repo_full_name=repo_full_name, skill_name=skill, api_key_id=api_key.id))
+    asyncio.create_task(pump_queue_to_ws(task.id))
+    return task
+
+
+nimbus_client_for_key = create_task_internal
+
+
 @router.post("/", response_model=TaskResponse)
 async def create_task(
     body: TaskCreate,
