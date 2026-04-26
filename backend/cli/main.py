@@ -233,6 +233,66 @@ Diff:
         raise typer.Exit(code=1)
 
 
+@app.command(name="install-hooks")
+def install_hooks(
+    severity: str = typer.Option("high", "--severity", help="Block on: high|medium|low"),
+):
+    """Install Nimbus pre-commit hook in the current git repo."""
+    from cli.renderer import console, GREEN, RED, FAINT
+
+    repo = Path.cwd()
+    hooks_dir = repo / ".git" / "hooks"
+
+    if not hooks_dir.exists():
+        console.print(f"  [{RED}]not a git repo[/{RED}]")
+        raise typer.Exit(1)
+
+    hook_path = hooks_dir / "pre-commit"
+    hook_script = f"""#!/bin/sh
+# Nimbus pre-commit hook
+# Installed by: nimbus install-hooks
+
+NIMBUS_BIN=$(which nimbus 2>/dev/null || echo "nimbus")
+
+if ! command -v nimbus >/dev/null 2>&1; then
+  exit 0
+fi
+
+$NIMBUS_BIN diff --staged --severity={severity} --exit-code
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo ""
+  echo "  Nimbus found issues. Fix them or run:"
+  echo "  git commit --no-verify  (to skip Nimbus review)"
+  echo ""
+fi
+
+exit $EXIT_CODE
+"""
+
+    hook_path.write_text(hook_script)
+    hook_path.chmod(0o755)
+
+    console.print(f"\n  [{GREEN}]✓[/{GREEN}] Nimbus pre-commit hook installed")
+    console.print(f"  [{FAINT}]blocking on severity: {severity}[/{FAINT}]")
+    console.print(f"  [{FAINT}]skip with: git commit --no-verify[/{FAINT}]")
+    console.print(f"  [{FAINT}]remove with: nimbus uninstall-hooks[/{FAINT}]\n")
+
+
+@app.command(name="uninstall-hooks")
+def uninstall_hooks():
+    """Remove Nimbus pre-commit hook from the current git repo."""
+    from cli.renderer import console, GREEN, RED, FAINT
+
+    hook_path = Path.cwd() / ".git" / "hooks" / "pre-commit"
+    if hook_path.exists() and "Nimbus pre-commit hook" in hook_path.read_text():
+        hook_path.unlink()
+        console.print(f"\n  [{GREEN}]✓[/{GREEN}] Nimbus pre-commit hook removed\n")
+    else:
+        console.print(f"\n  [{FAINT}]no Nimbus hook found[/{FAINT}]\n")
+
+
 @app.command()
 def agents(
     category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category"),
