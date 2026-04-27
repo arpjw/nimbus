@@ -230,13 +230,26 @@ export default function Page() {
               { name: "Linear",    slug: "linear" },
               { name: "Slack",     slug: "slack" },
               { name: "Railway",   slug: "railway" },
-              { name: "VS Code",   slug: "vscode" },
+              { name: "VS Code",   slug: "visualstudiocode" },
               { name: "PagerDuty", slug: "pagerduty" },
               { name: "Anthropic", slug: "anthropic" },
             ] as { name: string; slug: string }[]).map(({ name, slug }) => (
               <div key={name} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: 0.35 }}>
-                <img src={`https://cdn.simpleicons.org/${slug}/ffffff`} alt={name} width={22} height={22} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                <span style={{ fontFamily: mono, fontSize: isMobile ? 9 : 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.04em" }}>{name}</span>
+                <img
+                  src={`https://cdn.simpleicons.org/${slug}/ffffff`}
+                  alt={name}
+                  width={22}
+                  height={22}
+                  onError={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    img.style.display = "none";
+                    const span = document.createElement("span");
+                    span.style.cssText = "font-family:monospace;font-size:11px;color:rgba(255,255,255,0.5)";
+                    span.textContent = name[0];
+                    img.parentElement?.insertBefore(span, img);
+                  }}
+                />
+                <span style={{ fontFamily: mono, fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.04em" }}>{name}</span>
               </div>
             ))}
           </div>
