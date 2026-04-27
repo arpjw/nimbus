@@ -480,9 +480,9 @@ export default function Page() {
           </FadeUp>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, overflow: "hidden" }}>
             {([
-              { h: "Use the best model for every task", b: "Claude Opus for planning, Claude Sonnet for implementation. Auto mode picks the right model per phase.", l: "Explore models" },
-              { h: "Complete codebase understanding", b: "voyage-code-2 embeddings fused with BM25 via RRF. AST-aware chunking. Multi-repo workspace support.", l: "Learn about retrieval" },
-              { h: "Develop enduring software", b: "Self-improving reviewer learns from PR feedback. 20 built-in agents for security, testing, docs, and performance. MIT licensed.", l: "Explore agents" },
+              { h: "Any model, any provider", b: "Route planning to Claude Opus, implementation to Sonnet, review to GPT-4o. Or run fully local with Ollama. Configure per-role in config.toml.", l: "Learn about custom models" },
+              { h: "Complete codebase understanding", b: "voyage-code-2 embeddings fused with BM25 via RRF. AST-aware chunking. Architecture-aware planning injects your repo conventions into every plan.", l: "Learn about retrieval" },
+              { h: "Provably correct implementations", b: "TDD mode writes a failing test suite before writing a single line of production code. All tests must pass before the PR is opened.", l: "Learn about TDD mode" },
             ] as { h: string; b: string; l: string }[]).map((card, i) => (
               <FadeUp key={i} delay={i * 60}>
                 <div style={{ background: C.bg, padding: "28px" }}>
@@ -510,10 +510,10 @@ export default function Page() {
           <FadeUp delay={60}>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)", gap: isMobile ? 8 : 10 }}>
               {([
-                { v: "1.2", d: "Apr 26, 2026", t: "nimbus chat, diff, search, pre-commit hooks" },
+                { v: "1.3", d: "Apr 27, 2026", t: "TDD mode, health scoring, custom models, plugins" },
                 { v: "1.2", d: "Apr 26, 2026", t: "Chrome Extension, GitHub Actions, SDKs" },
+                { v: "1.2", d: "Apr 26, 2026", t: "nimbus chat, diff, search, pre-commit hooks" },
                 { v: "1.1", d: "Apr 26, 2026", t: "Interactive terminal + 20 built-in agents" },
-                { v: "1.0", d: "Apr 25, 2026", t: "Self-improving PR reviewer + GitHub App" },
               ] as { v: string; d: string; t: string }[]).map((entry, i) => (
                 <div key={i} style={{ border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "18px 20px", background: "#080808" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>

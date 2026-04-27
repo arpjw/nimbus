@@ -213,6 +213,7 @@ export default function DownloadPage() {
               { label: "Voice input", pkg: "pip install nimbus-ai[voice]", desc: "Speak your tasks. Requires mic access. Uses local Whisper (base model)." },
               { label: "Soundtrack", pkg: "pip install nimbus-ai[sound]", desc: "Audio feedback for task start, verify pass, complete, and failed states." },
               { label: "Both", pkg: "pip install nimbus-ai[voice,sound]", desc: "Voice input and soundtrack together." },
+              { label: "All extras", pkg: "pip install nimbus-ai[voice,sound]", desc: "Voice input and soundtrack together." },
             ].map(e => (
               <div key={e.label} style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", gap: 16, border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "14px 18px", background: "#0d0d0d" }}>
                 <div style={{ flexShrink: 0, width: isMobile ? "auto" : 80 }}>
