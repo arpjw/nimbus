@@ -77,6 +77,13 @@ nimbus skills install <name>    # Install a community skill
 nimbus skills publish           # Publish a skill to the marketplace
 nimbus pipeline list            # List configured pipelines
 nimbus pipeline run <name>      # Run a pipeline manually
+nimbus health                   # Run codebase health scan — 6 metrics with scores
+nimbus models                   # Show configured models for each role
+nimbus run --tdd "task"         # TDD mode: generate failing tests first, implement to pass
+nimbus plugin list              # List installed CLI plugins
+nimbus plugin install <pkg>     # Install a plugin from PyPI
+nimbus plugin uninstall <pkg>   # Remove a plugin
+nimbus plugin run <name> <cmd>  # Run a plugin command
 nimbus --version                # Show version
 ```
 
@@ -121,6 +128,43 @@ const task = await client.tasks.run({ description: 'add rate limiting', repo: 'a
 await task.wait();
 console.log(task.prUrl);
 ```
+
+---
+
+## Custom models
+
+Configure which model to use for each role in `~/.nimbus/config.toml`:
+
+```toml
+[models]
+planner     = "claude-opus-4-6"        # default
+implementer = "claude-sonnet-4-6"      # default
+reviewer    = "gpt-4o"                 # OpenAI
+chat        = "claude-sonnet-4-6"      # for nimbus chat
+
+[models.ollama]
+enabled  = false
+base_url = "http://localhost:11434"
+planner  = "deepseek-coder:33b"
+```
+
+Run `nimbus models` to see your current configuration.
+
+Supported providers: Anthropic (default), OpenAI (`pip install openai`), Ollama (local).
+
+---
+
+## Plugins
+
+Extend the Nimbus CLI with community plugins:
+
+```bash
+nimbus plugin install nimbus-plugin-jira    # adds nimbus plugin run jira <cmd>
+nimbus plugin install nimbus-plugin-notion  # adds nimbus plugin run notion <cmd>
+nimbus plugin list                          # show installed plugins
+```
+
+Plugins are Python packages under `nimbus-plugin-*` on PyPI. See the [example plugin](https://github.com/arpjw/nimbus-plugin-example) to build your own.
 
 ---
 
@@ -224,6 +268,15 @@ Full self-hosting docs at [docs.get-nimbus.com/self-hosted/overview](https://doc
 ---
 
 ## Changelog
+
+### v1.3.0 — Apr 27, 2026
+- `nimbus run --tdd` — TDD mode: generates a failing test suite first, implements until all tests pass
+- `nimbus health` — codebase health scan with 6 metrics (test coverage, tech debt, security, doc coverage, dep freshness, CI pass rate)
+- `nimbus models` — show and configure models per role (Anthropic/OpenAI/Ollama)
+- Custom model support — route each phase to any provider via `~/.nimbus/config.toml`
+- CLI plugin system — `nimbus plugin install/list/run`, entry-point based discovery
+- Engineering velocity dashboard at `/dashboard/analytics`
+- `TaskMetrics` model tracking duration, success rate, cost per task
 
 ### v1.2.0 — Apr 26, 2026
 
