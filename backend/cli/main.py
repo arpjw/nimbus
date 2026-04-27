@@ -735,6 +735,25 @@ def pipeline(
         console.print(f"\n  [{FAINT}]usage: nimbus pipeline [list|run] [name][/{FAINT}]\n")
 
 
+@app.command()
+def models():
+    """Show configured models for each Nimbus role."""
+    from cli.model_router import get_router, DEFAULTS
+    from cli.renderer import console, GOLD, GREEN, FAINT
+
+    router = get_router()
+    console.print(f"\n  [{GOLD}]nimbus models[/{GOLD}]\n")
+
+    for role in ["planner", "implementer", "reviewer", "chat"]:
+        model = router.get_model(role)
+        provider = router.get_provider(role)
+        is_default = model == DEFAULTS[role]
+        default_tag = f" [{FAINT}](default)[/{FAINT}]" if is_default else f" [{GREEN}](custom)[/{GREEN}]"
+        console.print(f"  [{FAINT}]{role:<14}[/{FAINT}] {model}{default_tag}")
+
+    console.print(f"\n  [{FAINT}]configure in ~/.nimbus/config.toml under [models][/{FAINT}]\n")
+
+
 @skills_app.command("list")
 def skills_list(
     backend: str = typer.Option("http://localhost:8000", help="Nimbus backend URL"),
