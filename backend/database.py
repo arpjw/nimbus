@@ -4,6 +4,7 @@ from sqlmodel import SQLModel, create_engine, Session
 from models.user import User  # noqa: F401 — ensure table is registered
 from models.pipeline import Pipeline, PipelineRun  # noqa: F401 — ensure tables are registered
 from models.health import HealthSnapshot  # noqa: F401 — ensure table is registered
+from models.task_metrics import TaskMetrics  # noqa: F401 — ensure table is registered
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:////data/nimbus.db")
 

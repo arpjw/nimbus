@@ -21,6 +21,7 @@ from config import settings
 from database import engine
 from github_app.github import post_comment
 from models.task import Task, Phase, Repo, RepoStatus
+from models.task_metrics import TaskMetrics
 from services.embedding import EmbeddingService
 from services.rag import RAGService
 from services.vector_store import VectorStore
@@ -281,8 +282,26 @@ async def run_task(
         await emit(Phase.CLEANUP, "Cleaning up workspace...")
         await _git_manager.cleanup(workspace)
 
-        _update_task(task.id, phase=Phase.DONE, completed_at=datetime.utcnow())
+        completed_at = datetime.utcnow()
+        _update_task(task.id, phase=Phase.DONE, completed_at=completed_at)
         await emit(Phase.DONE, "Task complete!", {"pr_url": pr_url, "verdict": review_result.verdict})
+
+        try:
+            with Session(engine) as _ms:
+                _ms.add(TaskMetrics(
+                    task_id=task.id,
+                    workspace_id=task.workspace_id,
+                    repo_id=task.repo_id,
+                    task_type="implementation",
+                    success=True,
+                    pr_opened=bool(pr_url),
+                    started_at=_task_start,
+                    completed_at=completed_at,
+                    duration_seconds=(completed_at - _task_start).total_seconds(),
+                ))
+                _ms.commit()
+        except Exception:
+            pass
         if _slack and _slack_ts:
             try:
                 duration = (datetime.utcnow() - _task_start).total_seconds()
