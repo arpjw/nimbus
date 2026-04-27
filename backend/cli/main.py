@@ -736,6 +736,48 @@ def pipeline(
 
 
 @app.command()
+def health(
+    repo_path: str = typer.Argument(".", help="Path to repo (default: current directory)"),
+):
+    """Run a codebase health scan and show scores."""
+    from pathlib import Path
+    from cli.renderer import console, GOLD, GREEN, RED, FAINT
+
+    path = Path(repo_path).resolve()
+
+    async def _run():
+        from services.health_scorer import generate_health_snapshot
+        console.print(f"\n  [{GOLD}]◆ codebase health scan[/{GOLD}]  [{FAINT}]{path.name}[/{FAINT}]\n")
+        console.print(f"  [{FAINT}]running checks...[/{FAINT}]")
+
+        data = await generate_health_snapshot("local", "local", path)
+
+        console.print()
+        metrics = [
+            ("test coverage",    data.get("test_coverage")),
+            ("tech debt",        data.get("tech_debt_score")),
+            ("security",         data.get("security_score")),
+            ("doc coverage",     data.get("doc_coverage")),
+            ("dep freshness",    data.get("dep_freshness")),
+        ]
+
+        for label, score in metrics:
+            if score is None:
+                console.print(f"  [{FAINT}]{label:<18}[/{FAINT}]  [{FAINT}]n/a[/{FAINT}]")
+                continue
+            color = GREEN if score >= 80 else ("yellow" if score >= 60 else RED)
+            bar = "█" * int(score / 10) + "░" * (10 - int(score / 10))
+            console.print(f"  [{FAINT}]{label:<18}[/{FAINT}]  [{color}]{bar}[/{color}]  [{color}]{score:.0f}%[/{color}]")
+
+        overall = data.get("overall_score")
+        grade = data.get("overall_grade", "?")
+        if overall:
+            console.print(f"\n  [{GOLD}]overall[/{GOLD}]  [{GOLD}]{grade}[/{GOLD}]  [{FAINT}]{overall:.0f}/100[/{FAINT}]\n")
+
+    asyncio.run(_run())
+
+
+@app.command()
 def models():
     """Show configured models for each Nimbus role."""
     from cli.model_router import get_router, DEFAULTS
