@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
+export const dynamic = 'force-dynamic';
+
 const sans  = "var(--font-sans,system-ui,sans-serif)";
 const mono  = "var(--font-mono,monospace)";
 const serif = "var(--font-serif,'Georgia',serif)";
