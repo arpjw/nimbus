@@ -121,6 +121,11 @@ export default function IDEPage() {
   const [nimbusInput, setNimbusInput] = useState("");
   const [nimbusLoading, setNimbusLoading] = useState(false);
 
+  const [nimbusTab, setNimbusTab] = useState<"chat" | "agents">("chat");
+  const [agents, setAgents] = useState<any[]>([]);
+  const [runningAgent, setRunningAgent] = useState<string | null>(null);
+  const [agentResult, setAgentResult] = useState<{ prUrl?: string; phase?: string } | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [idleWarning, setIdleWarning] = useState(false);
@@ -130,6 +135,14 @@ export default function IDEPage() {
     const key = localStorage.getItem("nimbus_api_key");
     if (key) setNimbusToken(key);
   }, []);
+
+  useEffect(() => {
+    if (!nimbusOpen) return;
+    fetch(`${API}/agents/`, { headers: { Authorization: `Bearer ${nimbusToken}` } })
+      .then(r => r.json())
+      .then(data => setAgents(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [nimbusOpen]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -290,6 +303,37 @@ export default function IDEPage() {
       }
       return next;
     });
+  };
+
+  const runAgent = async (agentName: string) => {
+    if (!ideSession || runningAgent) return;
+    setRunningAgent(agentName);
+    setAgentResult(null);
+    try {
+      const res = await fetch(`${API}/agents/${agentName}/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${nimbusToken}` },
+        body: JSON.stringify({
+          workspace_id: "ide-session",
+          repo_id: ideSession.id,
+          dry_run: false,
+        }),
+      });
+      const task = await res.json();
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 5000));
+        const statusRes = await fetch(`${API}/tasks/${task.id}/`, {
+          headers: { Authorization: `Bearer ${nimbusToken}` },
+        });
+        const status = await statusRes.json();
+        setAgentResult({ phase: status.phase, prUrl: status.pr_url });
+        if (status.pr_url || status.phase === "completed" || status.phase === "failed") break;
+      }
+    } catch (e) {
+      setAgentResult({ phase: "error" });
+    } finally {
+      setRunningAgent(null);
+    }
   };
 
   const sendNimbusMessage = async () => {
@@ -829,63 +873,141 @@ export default function IDEPage() {
               <span style={{ color: C.bg, fontWeight: 800, fontSize: 8 }}>N</span>
             </div>
             <span style={{ fontFamily: sans, fontSize: 13, fontWeight: 600, color: C.text }}>Nimbus</span>
-            <span style={{ fontFamily: mono, fontSize: 10, color: C.faint, marginLeft: "auto" }}>ask anything</span>
-          </div>
-
-          <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
-            {nimbusChatHistory.length === 0 && (
-              <div style={{ textAlign: "center", marginTop: 32 }}>
-                <p style={{ fontFamily: sans, fontSize: 13, color: C.faint, lineHeight: 1.7 }}>
-                  Ask anything about the codebase, or describe a task for Nimbus to implement.
-                </p>
-              </div>
-            )}
-            {nimbusChatHistory.map((msg, i) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontFamily: mono, fontSize: 10, color: msg.role === "user" ? C.gold : C.faint }}>
-                  {msg.role === "user" ? "you" : "nimbus"}
-                </span>
-                <p style={{ fontFamily: sans, fontSize: 13, color: C.muted, lineHeight: 1.65, margin: 0 }}>
-                  {msg.content}
-                </p>
-              </div>
-            ))}
-            {nimbusLoading && (
-              <div style={{ fontFamily: mono, fontSize: 11, color: C.faint }}>thinking...</div>
-            )}
-          </div>
-
-          <div style={{ padding: "10px 12px", borderTop: `1px solid ${C.border}` }}>
-            <div style={{
-              display: "flex", gap: 6, background: C.elevated,
-              border: `1px solid ${C.border2}`, borderRadius: 8, padding: "6px 8px",
-            }}>
-              <input
-                value={nimbusInput}
-                onChange={e => setNimbusInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendNimbusMessage()}
-                placeholder="run a task or ask about the code..."
-                style={{
-                  flex: 1, background: "transparent", border: "none", outline: "none",
-                  fontFamily: mono, fontSize: 12, color: C.text,
-                }}
-              />
-              <button
-                onClick={sendNimbusMessage}
-                disabled={nimbusLoading || !nimbusInput.trim()}
-                style={{
-                  background: nimbusInput.trim() ? C.gold : "transparent",
-                  color: nimbusInput.trim() ? C.bg : C.faint,
-                  border: "none", borderRadius: 5, padding: "4px 10px",
-                  fontFamily: mono, fontSize: 11, fontWeight: 600,
-                  cursor: nimbusInput.trim() ? "pointer" : "default",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                &#8593;
-              </button>
+            <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+              {(["chat", "agents"] as const).map(tab => (
+                <button key={tab} onClick={() => setNimbusTab(tab)}
+                  style={{
+                    background: nimbusTab === tab ? C.ghost : "none",
+                    border: "none", borderRadius: 4, padding: "3px 8px",
+                    fontFamily: mono, fontSize: 10,
+                    color: nimbusTab === tab ? C.text : C.faint,
+                    cursor: "pointer",
+                  }}>
+                  {tab}
+                </button>
+              ))}
             </div>
           </div>
+
+          {nimbusTab === "chat" ? (
+            <>
+              <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+                {nimbusChatHistory.length === 0 && (
+                  <div style={{ textAlign: "center", marginTop: 32 }}>
+                    <p style={{ fontFamily: sans, fontSize: 13, color: C.faint, lineHeight: 1.7 }}>
+                      Ask anything about the codebase, or describe a task for Nimbus to implement.
+                    </p>
+                  </div>
+                )}
+                {nimbusChatHistory.map((msg, i) => (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontFamily: mono, fontSize: 10, color: msg.role === "user" ? C.gold : C.faint }}>
+                      {msg.role === "user" ? "you" : "nimbus"}
+                    </span>
+                    <p style={{ fontFamily: sans, fontSize: 13, color: C.muted, lineHeight: 1.65, margin: 0 }}>
+                      {msg.content}
+                    </p>
+                  </div>
+                ))}
+                {nimbusLoading && (
+                  <div style={{ fontFamily: mono, fontSize: 11, color: C.faint }}>thinking...</div>
+                )}
+              </div>
+
+              <div style={{ padding: "10px 12px", borderTop: `1px solid ${C.border}` }}>
+                <div style={{
+                  display: "flex", gap: 6, background: C.elevated,
+                  border: `1px solid ${C.border2}`, borderRadius: 8, padding: "6px 8px",
+                }}>
+                  <input
+                    value={nimbusInput}
+                    onChange={e => setNimbusInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendNimbusMessage()}
+                    placeholder="run a task or ask about the code..."
+                    style={{
+                      flex: 1, background: "transparent", border: "none", outline: "none",
+                      fontFamily: mono, fontSize: 12, color: C.text,
+                    }}
+                  />
+                  <button
+                    onClick={sendNimbusMessage}
+                    disabled={nimbusLoading || !nimbusInput.trim()}
+                    style={{
+                      background: nimbusInput.trim() ? C.gold : "transparent",
+                      color: nimbusInput.trim() ? C.bg : C.faint,
+                      border: "none", borderRadius: 5, padding: "4px 10px",
+                      fontFamily: mono, fontSize: 11, fontWeight: 600,
+                      cursor: nimbusInput.trim() ? "pointer" : "default",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    &#8593;
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ flex: 1, overflowY: "auto", paddingTop: 12 }}>
+              {(() => {
+                const agentsByCategory = agents.reduce((acc: any, a: any) => {
+                  const cat = a.category || "other";
+                  if (!acc[cat]) acc[cat] = [];
+                  acc[cat].push(a);
+                  return acc;
+                }, {});
+                return (
+                  <>
+                    {agents.length === 0 && (
+                      <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: mono, fontSize: 11, color: C.faint }}>
+                        no agents available
+                      </div>
+                    )}
+                    {Object.entries(agentsByCategory).map(([category, agentList]: [string, any]) => (
+                      <div key={category} style={{ marginBottom: 16 }}>
+                        <p style={{ fontFamily: mono, fontSize: 9, color: C.faint, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, padding: "0 16px" }}>
+                          {category}
+                        </p>
+                        {(agentList as any[]).map((agent: any) => (
+                          <div key={agent.name} style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            padding: "7px 16px",
+                            background: runningAgent === agent.name ? C.goldDim : "transparent",
+                            transition: "background 0.15s",
+                          }}>
+                            <span style={{ fontFamily: mono, fontSize: 12, color: runningAgent === agent.name ? C.gold : C.muted }}>
+                              {agent.name}
+                            </span>
+                            <button
+                              onClick={() => runAgent(agent.name)}
+                              disabled={!!runningAgent}
+                              style={{
+                                background: "none", border: `1px solid ${runningAgent === agent.name ? C.gold + "40" : C.border}`,
+                                borderRadius: 4, padding: "2px 10px",
+                                fontFamily: mono, fontSize: 10,
+                                color: runningAgent === agent.name ? C.gold : C.faint,
+                                cursor: runningAgent ? "not-allowed" : "pointer",
+                                transition: "all 0.15s",
+                              }}
+                            >
+                              {runningAgent === agent.name ? (agentResult?.phase || "running...") : "run →"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                    {agentResult?.prUrl && (
+                      <div style={{ margin: "12px 16px", padding: "8px 12px", background: C.goldDim, borderRadius: 6, border: `1px solid ${C.gold}30` }}>
+                        <a href={agentResult.prUrl} target="_blank" rel="noopener noreferrer"
+                          style={{ fontFamily: mono, fontSize: 11, color: C.gold, textDecoration: "none" }}>
+                          &#8599; {agentResult.prUrl.split("/").slice(-3).join("/")}
+                        </a>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
 
