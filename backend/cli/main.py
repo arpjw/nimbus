@@ -26,6 +26,9 @@ app = typer.Typer(
 skills_app = typer.Typer(help="Manage skills")
 app.add_typer(skills_app, name="skills")
 
+plugin_app = typer.Typer(name="plugin", help="Manage Nimbus CLI plugins.")
+app.add_typer(plugin_app)
+
 _PHASE_COLOR = {
     "queued": Fore.WHITE,
     "cloning": Fore.CYAN,
@@ -1130,6 +1133,99 @@ async def _test_remote(file_path: str, repo_id: Optional[str], backend: str, wri
         print(Fore.GREEN + f"Written to {out_path}")
     else:
         print(Style.DIM + f"(use --write to save to {test_file_path})" + Style.RESET_ALL)
+
+
+@plugin_app.command("list")
+def plugin_list():
+    """List installed Nimbus plugins."""
+    from cli.plugin_manager import list_plugins, get_installed_plugins
+    from cli.renderer import console, GOLD, GREEN, FAINT
+
+    plugins = list_plugins()
+    installed_config = get_installed_plugins()
+
+    console.print(f"\n  [{GOLD}]nimbus plugins[/{GOLD}]\n")
+
+    if not plugins and not installed_config:
+        console.print(f"  [{FAINT}]no plugins installed[/{FAINT}]")
+        console.print(f"  [{FAINT}]install: nimbus plugin install <package>[/{FAINT}]\n")
+        return
+
+    for p in plugins:
+        console.print(f"  [{GOLD}]{p['name']}[/{GOLD}]  [{FAINT}]{p['class']}[/{FAINT}]")
+        for cmd in p.get("commands", []):
+            console.print(f"    [{FAINT}]nimbus {p['name']} {cmd['name']}[/{FAINT}]  {cmd['doc'][:60]}")
+
+    if installed_config and not plugins:
+        for pkg, info in installed_config.items():
+            console.print(f"  [{FAINT}]{pkg}[/{FAINT}]  [{FAINT}](installed, no entry point registered)[/{FAINT}]")
+
+    console.print()
+
+
+@plugin_app.command("install")
+def plugin_install(package: str = typer.Argument(..., help="Package name e.g. nimbus-plugin-jira")):
+    """Install a Nimbus plugin from PyPI."""
+    from cli.plugin_manager import install_plugin
+    from cli.renderer import console, GOLD, GREEN, RED, FAINT
+
+    console.print(f"\n  [{FAINT}]installing {package}...[/{FAINT}]")
+
+    if install_plugin(package):
+        console.print(f"  [{GREEN}]installed: {package}[/{GREEN}]")
+        console.print(f"  [{FAINT}]run: nimbus plugin list to see available commands[/{FAINT}]\n")
+    else:
+        console.print(f"  [{RED}]failed to install {package}[/{RED}]")
+        console.print(f"  [{FAINT}]check that the package exists on PyPI[/{FAINT}]\n")
+
+
+@plugin_app.command("uninstall")
+def plugin_uninstall(package: str = typer.Argument(..., help="Package name to uninstall")):
+    """Uninstall a Nimbus plugin."""
+    from cli.plugin_manager import uninstall_plugin
+    from cli.renderer import console, GREEN, RED, FAINT
+
+    if uninstall_plugin(package):
+        console.print(f"\n  [{GREEN}]uninstalled: {package}[/{GREEN}]\n")
+    else:
+        console.print(f"\n  [{RED}]failed to uninstall {package}[/{RED}]\n")
+
+
+@plugin_app.command("run")
+def plugin_run(
+    plugin_name: str = typer.Argument(..., help="Plugin name"),
+    command_name: str = typer.Argument(..., help="Command name"),
+    args: Optional[list[str]] = typer.Argument(None),
+):
+    """Run a command from an installed plugin."""
+    from cli.plugin_manager import discover_plugins
+    from cli.renderer import console, RED, FAINT
+
+    plugins = discover_plugins()
+    if plugin_name not in plugins:
+        console.print(f"\n  [{RED}]plugin not found: {plugin_name}[/{RED}]")
+        console.print(f"  [{FAINT}]install: nimbus plugin install nimbus-plugin-{plugin_name}[/{FAINT}]\n")
+        raise typer.Exit(1)
+
+    plugin_class = plugins[plugin_name]
+    plugin = plugin_class()
+    commands = plugin.get_commands()
+
+    if command_name not in commands:
+        available = ", ".join(commands.keys())
+        console.print(f"\n  [{RED}]command not found: {command_name}[/{RED}]")
+        console.print(f"  [{FAINT}]available: {available}[/{FAINT}]\n")
+        raise typer.Exit(1)
+
+    cmd = commands[command_name]
+    try:
+        if args:
+            cmd(*args)
+        else:
+            cmd()
+    except Exception as e:
+        console.print(f"\n  [{RED}]plugin error: {e}[/{RED}]\n")
+        raise typer.Exit(1)
 
 
 def main():
