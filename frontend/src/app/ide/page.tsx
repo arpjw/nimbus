@@ -72,6 +72,33 @@ function FileIcon({ path, isDir }: { path: string; isDir: boolean }) {
   );
 }
 
+function LoadingPhase() {
+  const phases = [
+    "spinning up your environment...",
+    "cloning repository...",
+    "installing nimbus...",
+    "indexing codebase...",
+    "almost ready...",
+  ];
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setPhase(p => (p + 1) % phases.length), 2200);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <span style={{
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: 12,
+      color: "rgba(245,239,230,0.3)",
+      transition: "opacity 0.3s ease",
+    }}>
+      {phases[phase]}
+    </span>
+  );
+}
+
 export default function IDEPage() {
   const [nimbusToken, setNimbusToken] = useState<string | null>(null);
 
@@ -95,11 +122,20 @@ export default function IDEPage() {
   const [nimbusLoading, setNimbusLoading] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [idleWarning, setIdleWarning] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     const key = localStorage.getItem("nimbus_api_key");
     if (key) setNimbusToken(key);
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   const startSession = async (repo: string) => {
@@ -204,6 +240,34 @@ export default function IDEPage() {
     saveTimeoutRef.current = setTimeout(() => saveFile(activeFile, value), 1500);
   }, [activeFile, saveFile]);
 
+  useEffect(() => {
+    if (!ideSession || ideSession.status !== "ready") return;
+    const timer = setTimeout(() => setIdleWarning(true), 86100 * 1000);
+    return () => clearTimeout(timer);
+  }, [ideSession?.status]);
+
+  const activeFileData = openFiles.find(f => f.path === activeFile);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        if (activeFile && activeFileData) {
+          saveFile(activeFile, activeFileData.content);
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "`") {
+        e.preventDefault();
+        setTerminalOpen(v => !v);
+      }
+      if (e.key === "Escape" && nimbusOpen) {
+        setNimbusOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeFile, activeFileData, nimbusOpen, saveFile]);
+
   const closeFile = (path: string) => {
     setOpenFiles(prev => {
       const idx = prev.findIndex(f => f.path === path);
@@ -252,8 +316,6 @@ export default function IDEPage() {
     }
   };
 
-  const activeFileData = openFiles.find(f => f.path === activeFile);
-
   const renderTree = (entries: FileEntry[], depth = 0): React.ReactNode => {
     return entries.map(entry => (
       <div key={entry.path}>
@@ -294,6 +356,32 @@ export default function IDEPage() {
       </div>
     ));
   };
+
+  if (isMobile) {
+    return (
+      <div style={{
+        background: "#0C0B09", minHeight: "100vh",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24, textAlign: "center",
+      }}>
+        <div>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#F5EFE6", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+            <span style={{ color: "#0C0B09", fontWeight: 800, fontSize: 16 }}>N</span>
+          </div>
+          <p style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: "italic", fontSize: 22, color: "#F5EFE6", marginBottom: 10 }}>
+            Nimbus IDE
+          </p>
+          <p style={{ fontFamily: "system-ui", fontSize: 14, color: "rgba(245,239,230,0.4)", lineHeight: 1.7, marginBottom: 24 }}>
+            The IDE requires a larger screen.<br />
+            Open on desktop for the full experience.
+          </p>
+          <a href="/" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: "rgba(245,239,230,0.3)", textDecoration: "none" }}>
+            ← back to get-nimbus.com
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   if (showRepoPicker) {
     return (
@@ -354,31 +442,59 @@ export default function IDEPage() {
           </div>
 
           {sessionLoading && (
-            <div style={{ fontFamily: mono, fontSize: 12, color: C.faint, marginTop: 16 }}>
+            <div style={{ marginTop: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
               <div style={{
-                width: 200, height: 2, background: C.ghost, borderRadius: 999,
-                margin: "0 auto 12px", overflow: "hidden",
+                width: 240, height: 2, background: "rgba(245,239,230,0.06)",
+                borderRadius: 999, overflow: "hidden",
               }}>
                 <div style={{
-                  height: "100%", background: C.gold, borderRadius: 999,
-                  animation: "loading 1.5s ease-in-out infinite",
-                  width: "40%",
+                  height: "100%", width: "40%",
+                  background: "linear-gradient(90deg, transparent, #C9A96E, transparent)",
+                  borderRadius: 999,
+                  animation: "shimmer 1.4s ease-in-out infinite",
                 }} />
               </div>
-              spinning up your environment...
+              <LoadingPhase />
+              <style>{`
+                @keyframes shimmer {
+                  0% { transform: translateX(-150%); }
+                  100% { transform: translateX(400%); }
+                }
+              `}</style>
             </div>
           )}
 
           {sessionError && (
-            <p style={{ fontFamily: mono, fontSize: 12, color: C.red, marginTop: 12 }}>{sessionError}</p>
+            <div style={{
+              marginTop: 16,
+              padding: "12px 16px",
+              background: "rgba(168,112,112,0.08)",
+              border: "1px solid rgba(168,112,112,0.2)",
+              borderRadius: 8,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+            }}>
+              <span style={{ color: "#A87070", fontSize: 14, flexShrink: 0 }}>✗</span>
+              <div>
+                <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: "#A87070", margin: "0 0 4px" }}>
+                  Session failed to start
+                </p>
+                <p style={{ fontFamily: "system-ui", fontSize: 12, color: "rgba(245,239,230,0.3)", margin: 0, lineHeight: 1.5 }}>
+                  {sessionError}
+                </p>
+                <button
+                  onClick={() => { setSessionError(null); setSessionLoading(false); }}
+                  style={{
+                    marginTop: 10, background: "none", border: "1px solid rgba(168,112,112,0.3)",
+                    borderRadius: 5, padding: "4px 12px",
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#A87070",
+                    cursor: "pointer",
+                  }}
+                >try again</button>
+              </div>
+            </div>
           )}
-
-          <style>{`
-            @keyframes loading {
-              0% { transform: translateX(-100%); }
-              100% { transform: translateX(350%); }
-            }
-          `}</style>
         </div>
       </div>
     );
@@ -477,6 +593,28 @@ export default function IDEPage() {
           ×
         </button>
       </div>
+
+      {idleWarning && (
+        <div style={{
+          gridColumn: "1 / -1",
+          background: "rgba(201,169,110,0.1)",
+          border: "none",
+          borderBottom: "1px solid rgba(201,169,110,0.2)",
+          padding: "8px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontSize: 12,
+          fontFamily: mono,
+          color: C.gold,
+        }}>
+          <span>⚠ Your session expires in 10 minutes. Save your work.</span>
+          <button
+            onClick={() => setIdleWarning(false)}
+            style={{ background: "none", border: "none", color: C.gold, cursor: "pointer", fontSize: 14 }}
+          >×</button>
+        </div>
+      )}
 
       {/* SIDEBAR */}
       <div style={{

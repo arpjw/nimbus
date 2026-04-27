@@ -263,7 +263,43 @@ export default function Page() {
             <h2 style={{ fontFamily: serif, fontSize: 34, fontWeight: 400, letterSpacing: "-0.02em", marginBottom: 8, color: C.text }}>Use Nimbus everywhere you work</h2>
             <p style={{ fontFamily: sans, fontSize: 16, color: C.muted, marginBottom: 48 }}>A unified engineering agent across every surface.</p>
           </FadeUp>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2,1fr)", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12 }}>
+
+            {/* Web IDE card — lead card */}
+            <FadeUp delay={0}>
+              <div style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden", background: "#0d0d0d", display: "flex", flexDirection: "column", height: "100%" }}>
+                <div style={{ background: "#0a0a0a", padding: "20px 18px 0", minHeight: 240, overflow: "hidden" }}>
+                  <div style={{ background: "#0C0B09", border: "1px solid rgba(255,248,235,0.08)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
+                    <WinBar title="ide.get-nimbus.com" />
+                    <div style={{ padding: "12px 14px", fontFamily: mono, fontSize: 11, display: "flex", gap: 0 }}>
+                      <div style={{ width: 90, borderRight: "1px solid rgba(255,255,255,0.05)", paddingRight: 8 }}>
+                        {["src/", "middleware/", "auth.ts", "routes/", "lib/"].map((f, i) => (
+                          <div key={i} style={{ color: i === 2 ? C.gold : "rgba(255,255,255,0.2)", fontSize: 10, padding: "2px 0", paddingLeft: f.endsWith("/") ? 0 : 8 }}>{f}</div>
+                        ))}
+                      </div>
+                      <div style={{ flex: 1, paddingLeft: 10 }}>
+                        <div style={{ color: "rgba(255,255,255,0.15)", fontSize: 9, lineHeight: 1.9 }}>
+                          <span style={{ color: "#C9A96E" }}>import</span>{" "}{"{ jwt }"}{" "}<span style={{ color: "#C9A96E" }}>from</span>{" "}<span style={{ color: "#7AAB8A" }}>'./lib'</span><br />
+                          <span style={{ color: "#C9A96E" }}>export</span>{" "}async{" "}<span style={{ color: "rgba(255,255,255,0.5)" }}>function</span>{" "}<span style={{ color: "#D4C4A8" }}>auth</span>(req){" {"}<br />
+                          {"  "}<span style={{ color: "#C9A96E" }}>const</span>{" token = "}<br />
+                          {"    jwt."}<span style={{ color: "#D4C4A8" }}>verify</span>(req)<br />
+                          {"}"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ padding: "22px 22px 24px" }}>
+                  <p style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>Web IDE</p>
+                  <p style={{ fontFamily: sans, fontSize: 13, color: C.muted, lineHeight: 1.65, marginBottom: 18 }}>
+                    Monaco editor, live terminal, and Nimbus chat in the browser. No install needed — open any GitHub repo instantly.
+                  </p>
+                  <a href="/ide" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: sans, fontSize: 13, fontWeight: 500, color: C.bg, background: C.text, padding: "8px 18px", borderRadius: 999, textDecoration: "none" }}>
+                    Open IDE →
+                  </a>
+                </div>
+              </div>
+            </FadeUp>
 
             {/* Terminal card */}
             <FadeUp delay={0}>
