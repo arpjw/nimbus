@@ -37,7 +37,12 @@ class Settings(BaseSettings):
     free_tier_monthly_limit: int = 10
 
     ws_ping_interval: int = 20
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = [
+        "https://get-nimbus.com",
+        "https://www.get-nimbus.com",
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ]
 
     slack_bot_token: str = ""
     slack_signing_secret: str = ""
