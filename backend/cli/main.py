@@ -418,8 +418,25 @@ def run(
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
     api_key: Optional[str] = typer.Option(None, help="Nimbus API key (defaults to NIMBUS_API_KEY)"),
     skill: Optional[str] = typer.Option(None, help="Apply a named skill to this task"),
+    tdd: bool = typer.Option(False, "--tdd", help="TDD mode: write tests first, implement to pass"),
 ):
     """Submit a task to the Nimbus backend agent."""
+    if tdd:
+        if not task:
+            print(Fore.RED + "Provide a task description with --tdd", file=sys.stderr)
+            raise typer.Exit(1)
+
+        async def _run_tdd():
+            from cli.local_executor import LocalExecutor
+            from cli.tdd_executor import run_tdd_task
+            executor = LocalExecutor(Path.cwd())
+            await executor.index()
+            chunks, _ = await executor.retrieve_context(task, top_k=8)
+            await run_tdd_task(task, Path.cwd(), chunks, executor, None)
+
+        asyncio.run(_run_tdd())
+        return
+
     if agent and not task:
         from services.agent_library import get_agent as _get_agent
         ag = _get_agent(agent)

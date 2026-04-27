@@ -82,6 +82,12 @@ class NimbusREPL:
             if query:
                 await self._do_search(query)
 
+        elif cmd.startswith("run ") and "--tdd" in cmd:
+            task_desc = inp[4:].replace("--tdd", "").strip()
+            from cli.tdd_executor import run_tdd_task
+            chunks, _ = await self.executor.retrieve_context(task_desc, top_k=8)
+            await run_tdd_task(task_desc, self.executor.repo_path, chunks, self.executor, None)
+
         else:
             await self.executor.run_task(inp)
 
