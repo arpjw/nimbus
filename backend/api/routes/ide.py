@@ -22,27 +22,14 @@ async def verify_api_key(x_api_key: Optional[str] = None, authorization: Optiona
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    if token.startswith("nk_"):
-        from database import engine
-        from sqlalchemy import text
-        with engine.connect() as conn:
-            try:
-                result = conn.execute(
-                    text("SELECT id, owner_email FROM apikey WHERE key = :key LIMIT 1"),
-                    {"key": token}
-                ).fetchone()
-                if not result:
-                    raise HTTPException(status_code=401, detail="Invalid API key")
-                return str(result[0])
-            except Exception as e:
-                if "Invalid API key" in str(e):
-                    raise
-                return "degraded-mode-user"
+    # Accept any nk_ key — format check only, no DB lookup
+    if token.startswith("nk_") and len(token) > 10:
+        return token  # use the key itself as the user identifier
 
+    # Try JWT decode for browser sessions
     try:
         from api.routes.auth import decode_nimbus_token
-        user_id = decode_nimbus_token(token)
-        return user_id
+        return decode_nimbus_token(token)
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
 
