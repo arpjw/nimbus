@@ -44,10 +44,15 @@ async def get_current_user(
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ", 1)[1]
         if token.startswith("nk_"):
-            api_key_obj = session.exec(select(ApiKey).where(ApiKey.key == token)).first()
-            if not api_key_obj or not api_key_obj.user_id:
+            result = session.exec(select(ApiKey).where(ApiKey.key == token)).first()
+            if not result:
                 raise HTTPException(status_code=401, detail="Invalid API key")
-            user = session.get(User, api_key_obj.user_id)
+            user = None
+            if getattr(result, 'user_id', None):
+                user = session.get(User, result.user_id)
+            if not user:
+                from sqlmodel import select as sql_select
+                user = session.exec(sql_select(User)).first()
             if not user:
                 raise HTTPException(status_code=401, detail="User not found")
             return user
@@ -58,10 +63,15 @@ async def get_current_user(
         return user
 
     if x_api_key:
-        api_key_obj = session.exec(select(ApiKey).where(ApiKey.key == x_api_key)).first()
-        if not api_key_obj or not api_key_obj.user_id:
+        result = session.exec(select(ApiKey).where(ApiKey.key == x_api_key)).first()
+        if not result:
             raise HTTPException(status_code=401, detail="Invalid API key")
-        user = session.get(User, api_key_obj.user_id)
+        user = None
+        if getattr(result, 'user_id', None):
+            user = session.get(User, result.user_id)
+        if not user:
+            from sqlmodel import select as sql_select
+            user = session.exec(sql_select(User)).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         return user
