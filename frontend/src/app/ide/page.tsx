@@ -100,7 +100,12 @@ function LoadingPhase() {
 }
 
 export default function IDEPage() {
-  const [nimbusToken, setNimbusToken] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('nimbus_ide_api_key') || '';
+    }
+    return '';
+  });
 
   const [ideSession, setIdeSession] = useState<any>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
@@ -132,18 +137,8 @@ export default function IDEPage() {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    fetch('/api/auth/session')
-      .then(r => r.json())
-      .then(data => {
-        const t = data?.nimbusToken || data?.user?.nimbusToken || null;
-        setNimbusToken(t);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     if (!nimbusOpen) return;
-    fetch(`${API}/agents/`, { headers: { Authorization: `Bearer ${nimbusToken}` } })
+    fetch(`${API}/agents/`, { headers: { Authorization: `Bearer ${apiKey}` } })
       .then(r => r.json())
       .then(data => setAgents(Array.isArray(data) ? data : []))
       .catch(() => {});
@@ -162,7 +157,7 @@ export default function IDEPage() {
     try {
       const res = await fetch(`${API}/ide/sessions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${nimbusToken}` },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
         body: JSON.stringify({ repo, branch: "main" }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -181,7 +176,7 @@ export default function IDEPage() {
       await new Promise(r => setTimeout(r, 2000));
       try {
         const res = await fetch(`${API}/ide/sessions/${sessionId}`, {
-          headers: { "Authorization": `Bearer ${nimbusToken}` },
+          headers: { "Authorization": `Bearer ${apiKey}` },
         });
         const data = await res.json();
         setIdeSession(data);
@@ -317,7 +312,7 @@ export default function IDEPage() {
     try {
       const res = await fetch(`${API}/agents/${agentName}/run`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${nimbusToken}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
           workspace_id: "ide-session",
           repo_id: ideSession.id,
@@ -328,7 +323,7 @@ export default function IDEPage() {
       for (let i = 0; i < 60; i++) {
         await new Promise(r => setTimeout(r, 5000));
         const statusRes = await fetch(`${API}/tasks/${task.id}/`, {
-          headers: { Authorization: `Bearer ${nimbusToken}` },
+          headers: { Authorization: `Bearer ${apiKey}` },
         });
         const status = await statusRes.json();
         setAgentResult({ phase: status.phase, prUrl: status.pr_url });
@@ -350,7 +345,7 @@ export default function IDEPage() {
     try {
       const res = await fetch(`${API}/tasks/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${nimbusToken}` },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
         body: JSON.stringify({ description: msg }),
       });
       const data = await res.json();
@@ -467,7 +462,7 @@ export default function IDEPage() {
               autoFocus
               value={repoInput}
               onChange={e => setRepoInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && repoInput.trim() && startSession(repoInput.trim())}
+              onKeyDown={e => e.key === "Enter" && repoInput.trim() && apiKey.trim() && startSession(repoInput.trim())}
               placeholder="owner/repository"
               style={{
                 flex: 1, background: "transparent", border: "none", outline: "none",
@@ -475,8 +470,8 @@ export default function IDEPage() {
               }}
             />
             <button
-              onClick={() => repoInput.trim() && startSession(repoInput.trim())}
-              disabled={sessionLoading || !repoInput.trim()}
+              onClick={() => repoInput.trim() && apiKey.trim() && startSession(repoInput.trim())}
+              disabled={sessionLoading || !repoInput.trim() || !apiKey.trim()}
               style={{
                 background: sessionLoading ? C.ghost : C.text,
                 color: C.bg, border: "none", borderRadius: 8,
@@ -488,6 +483,29 @@ export default function IDEPage() {
             >
               {sessionLoading ? "Starting..." : "Open →"}
             </button>
+          </div>
+
+          {/* API key input */}
+          <div style={{
+            background: C.surface, border: `1px solid ${C.border}`,
+            borderRadius: 10, padding: "10px 14px",
+            display: "flex", alignItems: "center", gap: 10, marginBottom: 8,
+          }}>
+            <span style={{ fontFamily: mono, fontSize: 11, color: C.faint, flexShrink: 0 }}>API key</span>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={e => {
+                setApiKey(e.target.value);
+                localStorage.setItem('nimbus_ide_api_key', e.target.value);
+              }}
+              placeholder="nk_..."
+              style={{
+                flex: 1, background: "transparent", border: "none", outline: "none",
+                fontFamily: mono, fontSize: 13, color: C.text,
+              }}
+            />
+            {apiKey && <span style={{ color: C.green, fontSize: 11 }}>✓</span>}
           </div>
 
           {sessionLoading && (

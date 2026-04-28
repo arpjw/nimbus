@@ -38,16 +38,35 @@ def decode_nimbus_token(token: str) -> Optional[str]:
 
 async def get_current_user(
     authorization: Optional[str] = Header(None),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
     session: Session = Depends(get_session)
 ) -> User:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    token = authorization.split(" ", 1)[1]
-    user_id = decode_nimbus_token(token)
-    user = session.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+        if token.startswith("nk_"):
+            api_key_obj = session.exec(select(ApiKey).where(ApiKey.key == token)).first()
+            if not api_key_obj or not api_key_obj.user_id:
+                raise HTTPException(status_code=401, detail="Invalid API key")
+            user = session.get(User, api_key_obj.user_id)
+            if not user:
+                raise HTTPException(status_code=401, detail="User not found")
+            return user
+        user_id = decode_nimbus_token(token)
+        user = session.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+
+    if x_api_key:
+        api_key_obj = session.exec(select(ApiKey).where(ApiKey.key == x_api_key)).first()
+        if not api_key_obj or not api_key_obj.user_id:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        user = session.get(User, api_key_obj.user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
 
 class GitHubAuthRequest(BaseModel):
