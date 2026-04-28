@@ -197,6 +197,16 @@ Load unpacked from `chrome://extensions` → Developer mode → Load unpacked �
 
 ---
 
+## Web IDE
+
+Open any GitHub repo in the browser — no install required:
+
+[get-nimbus.com/ide](https://get-nimbus.com/ide)
+
+Monaco editor, live terminal, file tree, and Nimbus chat panel. Runs on isolated Fly.io containers — one per session, auto-destroyed after 24 hours.
+
+---
+
 ## Integrations
 
 | Surface | How |
@@ -264,12 +274,19 @@ Full self-hosting docs at [docs.get-nimbus.com/self-hosted/overview](https://doc
 | Chrome Extension | `arpjw/nimbus-chrome` |
 | VS Code Extension | `arpjw/nimbus-vscode` |
 | Homebrew tap | `brew tap arpjw/tap` |
+| Web IDE | [get-nimbus.com/ide](https://get-nimbus.com/ide) |
 
 ---
 
 ## Changelog
 
+### v1.4.0 — Apr 28, 2026
+- Web IDE at `get-nimbus.com/ide` — Monaco editor, xterm.js terminal, isolated Fly.io containers per session
+- Built-in agents accessible directly from the IDE panel — one-click agent execution from the editor
+- Nimbus chat panel in the IDE — ask questions about the open repo without leaving the browser
+
 ### v1.3.0 — Apr 27, 2026
+- Web IDE at `get-nimbus.com/ide` — Monaco editor, xterm.js terminal, Nimbus agents panel, file tree, no install required
 - `nimbus run --tdd` — TDD mode: generates a failing test suite first, implements until all tests pass
 - `nimbus health` — codebase health scan with 6 metrics (test coverage, tech debt, security, doc coverage, dep freshness, CI pass rate)
 - `nimbus models` — show and configure models per role (Anthropic/OpenAI/Ollama)
