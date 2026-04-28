@@ -10,7 +10,7 @@ from typing import Optional
 FLY_API_TOKEN = os.environ.get("FLY_API_TOKEN", "")
 FLY_APP_NAME = os.environ.get("FLY_APP_NAME", "nimbus-ide")
 FLY_API_BASE = "https://api.machines.dev/v1"
-IDE_IMAGE = os.environ.get("IDE_IMAGE", "ghcr.io/arpjw/nimbus-ide:latest")
+IDE_IMAGE = os.environ.get("IDE_IMAGE", "registry.fly.io/nimbus-ide:deployment-01KQ8QX521887QVWE7C913T2Z6")
 
 
 def _headers() -> dict:
