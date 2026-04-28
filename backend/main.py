@@ -428,9 +428,25 @@ async def custom_swagger_ui():
     return HTMLResponse(modified)
 
 
+def migrate_apikey_table():
+    from sqlalchemy import text
+    from database import engine
+    try:
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE apikey ADD COLUMN user_id VARCHAR"))
+                conn.commit()
+                print("Migrated: added user_id to apikey table")
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"Warning: apikey migration failed: {e}")
+
+
 @app.on_event("startup")
 async def startup():
     init_db()
+    migrate_apikey_table()
     from services.skills import migrate_skills_table
     migrate_skills_table()
     SkillsService().seed_builtins()
