@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from database import get_session
-from models.api_key import ApiKey
+from services.auth import ApiKey
 from models.user import User
 import os
 
