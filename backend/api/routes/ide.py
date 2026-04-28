@@ -88,10 +88,12 @@ async def _start_machine(session_id: str, user_id: str):
             db.commit()
 
         except Exception as e:
+            print(f"IDE session {session_id} failed: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             session.status = "error"
             db.add(session)
             db.commit()
-            print(f"Failed to start IDE machine for session {session_id}: {e}")
 
 
 @router.get("/sessions/{session_id}", response_model=SessionResponse)

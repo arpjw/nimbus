@@ -55,11 +55,14 @@ async def create_machine(
             "lease_ttl": 86400,  # 24 hours
         }
 
+        print(f"Creating Fly Machine with image: {IDE_IMAGE}")
         response = await client.post(
             f"{FLY_API_BASE}/apps/{FLY_APP_NAME}/machines",
             headers=_headers(),
             json=payload,
         )
+
+        print(f"Fly API response: {response.status_code} {response.text[:500]}")
 
         if response.status_code not in (200, 201):
             raise Exception(f"Fly API error {response.status_code}: {response.text}")

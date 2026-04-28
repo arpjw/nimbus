@@ -51,6 +51,9 @@ _CORS_HEADERS = {
 
 @app.exception_handler(Exception)
 async def universal_exception_handler(request: Request, exc: Exception):
+    import traceback
+    print(f"Unhandled exception on {request.url}: {exc}")
+    traceback.print_exc()
     from fastapi import HTTPException
     if isinstance(exc, HTTPException):
         return JSONResponse(

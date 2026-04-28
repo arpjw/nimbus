@@ -100,12 +100,12 @@ function LoadingPhase() {
 }
 
 export default function IDEPage() {
-  const [apiKey, setApiKey] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('nimbus_ide_api_key') || '';
-    }
-    return '';
-  });
+  const [apiKey, setApiKey] = useState<string>('');
+
+  useEffect(() => {
+    const stored = localStorage.getItem('nimbus_ide_api_key');
+    if (stored) setApiKey(stored);
+  }, []);
 
   const [ideSession, setIdeSession] = useState<any>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
