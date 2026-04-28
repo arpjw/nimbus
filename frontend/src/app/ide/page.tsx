@@ -132,8 +132,13 @@ export default function IDEPage() {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    const key = localStorage.getItem("nimbus_api_key");
-    if (key) setNimbusToken(key);
+    fetch('/api/auth/session')
+      .then(r => r.json())
+      .then(data => {
+        const t = data?.nimbusToken || data?.user?.nimbusToken || null;
+        setNimbusToken(t);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
