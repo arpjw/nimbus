@@ -8,7 +8,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlmodel import Session, select
 
 from agent.orchestrator import run_task
-from api.ws import get_or_create_queue, pump_queue_to_ws
 from database import engine
 from models.automation import Automation
 from models.task import Task, Repo
@@ -56,9 +55,7 @@ def _render_task(automation: Automation, payload: dict) -> str:
 
 
 def _queue_task(task: Task, repo: Repo) -> None:
-    queue = get_or_create_queue(task.id)
-    asyncio.create_task(run_task(task, repo, queue))
-    asyncio.create_task(pump_queue_to_ws(task.id))
+    asyncio.create_task(run_task(task, repo))
 
 
 class AutomationEngine:

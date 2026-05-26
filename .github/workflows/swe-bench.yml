@@ -1,0 +1,57 @@
+name: SWE-bench Verified
+
+on:
+  workflow_dispatch:
+    inputs:
+      tasks:
+        description: "Number of tasks (integer or 'all')"
+        required: true
+        default: "10"
+      concurrency:
+        description: "Max parallel tasks"
+        required: false
+        default: "3"
+      run_id:
+        description: "Optional run identifier"
+        required: false
+
+jobs:
+  swe-bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt -e .
+          pip install datasets swebench
+
+      - name: Run harness
+        working-directory: backend
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+          REQUIRE_API_KEY: "false"
+        run: |
+          python -m benchmarks.swe_bench.harness \
+            --tasks ${{ github.event.inputs.tasks }} \
+            --confirm-cost \
+            --yes \
+            --concurrency ${{ github.event.inputs.concurrency || '3' }} \
+            ${{ github.event.inputs.run_id && format('--run-id {0}', github.event.inputs.run_id) || '' }}
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: swe-bench-results-${{ github.run_id }}
+          path: backend/benchmarks/swe_bench/results/
+          retention-days: 90

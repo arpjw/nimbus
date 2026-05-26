@@ -120,7 +120,6 @@ def version_callback(value: bool):
 @app.callback(invoke_without_command=True)
 def default(
     ctx: typer.Context,
-    voice: bool = typer.Option(False, "--voice", help="Use voice input for task description"),
     version: bool = typer.Option(False, "--version", "-v", callback=version_callback, is_eager=True, help="Show version"),
 ):
     if ctx.invoked_subcommand is None:
@@ -128,7 +127,7 @@ def default(
         if not check_first_run():
             raise typer.Exit()
         from cli.interactive import NimbusREPL
-        repl = NimbusREPL(Path.cwd(), voice_mode=voice)
+        repl = NimbusREPL(Path.cwd())
         asyncio.run(repl.start())
 
 
@@ -649,6 +648,9 @@ def skills_search(
     headers = {"X-API-Key": api_key} if api_key else {}
     try:
         r = httpx.get(f"{backend_url}/marketplace/skills", params={"q": query}, headers=headers, timeout=10)
+        if r.status_code == 410:
+            console.print(f"\n  [yellow]The skill marketplace is paused. Built-in agents are still available via [bold]nimbus agents[/bold].[/yellow]\n")
+            return
         skills = r.json() if r.status_code == 200 else []
     except Exception:
         skills = []
@@ -681,6 +683,9 @@ def skills_install(
     headers = {"X-API-Key": api_key} if api_key else {}
     try:
         r = httpx.post(f"{backend_url}/marketplace/skills/{name}/install", headers=headers, timeout=10)
+        if r.status_code == 410:
+            console.print(f"\n  [yellow]The skill marketplace is paused. Built-in agents are still available via [bold]nimbus agents[/bold].[/yellow]\n")
+            return
         if r.status_code == 200:
             skill = r.json()
             console.print(f"\n  [{GREEN}]✓[/{GREEN}] installed: {skill['name']}")

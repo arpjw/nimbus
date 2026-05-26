@@ -50,7 +50,6 @@ async def execute_pipeline(pipeline_id: str, repo_id: str, workspace_id: str, ap
                     repo = session.get(Repo, repo_id)
                     if repo:
                         from agent.orchestrator import run_task
-                        from api.ws import get_or_create_queue, pump_queue_to_ws
                         task = Task(
                             workspace_id=workspace_id,
                             repo_id=repo_id,
@@ -59,9 +58,7 @@ async def execute_pipeline(pipeline_id: str, repo_id: str, workspace_id: str, ap
                         session.add(task)
                         session.commit()
                         session.refresh(task)
-                        queue = get_or_create_queue(task.id)
-                        asyncio.create_task(run_task(task, repo, queue, api_key_id=api_key_id))
-                        asyncio.create_task(pump_queue_to_ws(task.id))
+                        asyncio.create_task(run_task(task, repo, api_key_id=api_key_id))
 
                 completed.add(step_id)
                 run.steps_completed += 1

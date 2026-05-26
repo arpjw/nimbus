@@ -7,12 +7,11 @@ from cli.local_executor import LocalExecutor
 
 
 class NimbusREPL:
-    def __init__(self, repo_path: Path = None, voice_mode: bool = False):
+    def __init__(self, repo_path: Path = None):
         self.repo_path = repo_path or Path.cwd()
         self.executor = LocalExecutor(self.repo_path)
         self.history = []
         self.running = True
-        self.voice_mode = voice_mode
 
     def _setup_readline(self):
         readline.set_history_length(500)
@@ -35,11 +34,7 @@ class NimbusREPL:
         while self.running:
             try:
                 console.print(f"  [{GOLD}]nimbus[/{GOLD}] [{FAINT}]›[/{FAINT}] ", end="")
-                if self.voice_mode:
-                    from cli.voice import record_and_transcribe
-                    user_input = record_and_transcribe()
-                else:
-                    user_input = input().strip()
+                user_input = input().strip()
             except (EOFError, KeyboardInterrupt):
                 console.print()
                 break

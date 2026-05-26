@@ -2,7 +2,7 @@
 
 **Autonomous software engineering, stratified.**
 
-Nimbus is a multi-repository SWE agent that plans, implements, and reviews code against real codebases — entirely on its own. Run it from your terminal, VS Code, Slack, or Linear. Powered by Claude and Voyage AI.
+Nimbus is a multi-repository SWE agent that plans, implements, and reviews code against real codebases — entirely on its own. Run it from your terminal, Slack, or Linear. Powered by Claude and Voyage AI.
 
 [get-nimbus.com](https://get-nimbus.com) · [api.get-nimbus.com](https://api.get-nimbus.com) · MIT License
 
@@ -114,11 +114,6 @@ nimbus watch
 nimbus pair
 ```
 
-**Voice input** — speak your tasks:
-```bash
-nimbus --voice
-```
-
 **Memory viewer** — inspect and edit what Nimbus knows about your codebase:
 ```bash
 nimbus memory           # list all memory entries
@@ -200,7 +195,6 @@ nimbus memory --delete <id>
 | `--local` | Force local execution |
 | `--dry-run` | Show plan only, don't execute |
 | `--yes` / `-y` | Skip approval prompts |
-| `--voice` | Voice input mode |
 
 ---
 
@@ -341,15 +335,6 @@ curl -X POST https://api.get-nimbus.com/linear/teams \
   -d '{"linear_team_id": "TEAM_ID", "github_repo_url": "https://github.com/owner/repo"}'
 ```
 
-### VS Code / Cursor
-
-Install the extension:
-```bash
-code --install-extension nimbus-0.1.0.vsix
-```
-
-Right-click any file → "Run with Nimbus..." or use `Cmd+Shift+N`. Progress streams in the editor panel. Works in both VS Code and Cursor.
-
 ### Automations
 
 Trigger Nimbus from any event:
@@ -457,7 +442,6 @@ backend/
 │   ├── session_recorder.py      # Session recording and replay
 │   ├── watcher.py               # Ambient watch mode
 │   ├── pair.py                  # Pair programming mode
-│   ├── voice.py                 # Voice input (Whisper)
 │   ├── sounds.py                # Soundtrack
 │   └── config.py                # ~/.nimbus/config.toml
 └── api/routes/
@@ -480,7 +464,6 @@ frontend/
 └── public/
     └── manifest.json            # PWA manifest
 
-nimbus-vscode/                   # VS Code / Cursor extension
 ```
 
 ---

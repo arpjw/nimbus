@@ -22,7 +22,7 @@ export default function Navbar() {
               <span style={{ fontWeight: 400, fontSize: 17, fontStyle: "italic", color: C.text, fontFamily: serif }}>Nimbus</span>
             </div>
             <div className="nav-desktop-links" style={{ display: "flex", gap: 32 }}>
-              {([["Product", "/#product"], ["Docs", "https://docs.get-nimbus.com"], ["IDE", "/ide"], ["Marketplace", "/marketplace"], ["GitHub", "https://github.com/arpjw/nimbus"], ["Download", "/download"]] as [string, string][]).map(([l, h]) => (
+              {([["Product", "/#product"], ["Docs", "https://docs.get-nimbus.com"], ["GitHub", "https://github.com/arpjw/nimbus"], ["Download", "/download"]] as [string, string][]).map(([l, h]) => (
                 <a key={l} href={h} style={{ fontFamily: sans, fontSize: 14, color: C.muted, textDecoration: "none" }}>{l}</a>
               ))}
             </div>

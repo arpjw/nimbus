@@ -1,25 +1,22 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  async headers() {
+  async redirects() {
     return [
       {
         source: '/ide',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://api.get-nimbus.com https://*.fly.dev wss://*.fly.dev; worker-src 'self' blob:;",
-          },
-        ],
+        destination: '/',
+        permanent: true,
       },
       {
         source: '/ide/:path*',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://api.get-nimbus.com https://*.fly.dev wss://*.fly.dev; worker-src 'self' blob:;",
-          },
-        ],
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/marketplace',
+        destination: '/',
+        permanent: false,
       },
     ];
   },

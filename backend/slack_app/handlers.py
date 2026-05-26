@@ -4,7 +4,6 @@ import re
 from sqlmodel import Session, select
 
 from agent.reviewer_external import review_pr
-from api.ws import get_or_create_queue, pump_queue_to_ws
 from config import settings
 from database import engine
 from github_app.handlers import _find_or_create_workspace_and_repo
@@ -63,9 +62,7 @@ async def _handle_run(channel_id: str, args: str) -> dict:
 
     from agent.orchestrator import run_task
 
-    queue = get_or_create_queue(task_id)
-    asyncio.create_task(run_task(task, repo, queue, slack_channel=channel_id))
-    asyncio.create_task(pump_queue_to_ws(task_id))
+    asyncio.create_task(run_task(task, repo, slack_channel=channel_id))
 
     return {"response_type": "in_channel", "text": f":hourglass: On it... Task `{task_id[:8]}` queued."}
 

@@ -41,7 +41,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-voice = ["openai-whisper", "sounddevice", "numpy", "scipy"]
 sound = ["pygame"]
 
 [project.scripts]

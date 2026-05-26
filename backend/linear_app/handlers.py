@@ -4,7 +4,6 @@ import logging
 from sqlmodel import Session, select
 
 from agent.orchestrator import run_task
-from api.ws import get_or_create_queue, pump_queue_to_ws
 from database import engine
 from linear_app.linear_app import LinearApp
 from models.task import Task, Repo, Workspace, LinearTeamRepoMap
@@ -25,9 +24,7 @@ def _find_or_create_workspace_and_repo(
 
 
 def _queue_task(task: Task, repo: Repo) -> None:
-    queue = get_or_create_queue(task.id)
-    asyncio.create_task(run_task(task, repo, queue))
-    asyncio.create_task(pump_queue_to_ws(task.id))
+    asyncio.create_task(run_task(task, repo))
 
 
 async def _dispatch_from_issue(issue_id: str, team_id: str) -> None:

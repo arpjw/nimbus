@@ -23,7 +23,6 @@ from api.routes.pipelines import router as pipelines_router
 from api.routes.marketplace import router as marketplace_router
 from api.routes.health import router as health_router
 from api.routes.analytics import router as analytics_router
-from api.routes.ide import router as ide_router
 from api.routes.admin import router as admin_router
 from github_app.webhooks import router as github_router
 from linear_app.webhooks import linear_router
@@ -493,5 +492,4 @@ app.include_router(pipelines_router)
 app.include_router(marketplace_router)
 app.include_router(health_router)
 app.include_router(analytics_router)
-app.include_router(ide_router)
 app.include_router(admin_router)
