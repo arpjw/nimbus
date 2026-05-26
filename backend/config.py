@@ -33,8 +33,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     bm25_cache_dir: str = "./.bm25"
 
-    parallel_threshold: int = 6
+    parallel_threshold: int = 9999
     max_parallel_workers: int = 3
+    experimental_parallel: bool = False
 
     require_api_key: bool = False
     free_tier_monthly_limit: int = 10

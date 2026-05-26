@@ -233,7 +233,13 @@ async def run_task(
             _update_task(task.id, phase=Phase.IMPLEMENTING, iteration=iteration + 1)
             await emit(Phase.IMPLEMENTING, f"Implementing (iteration {iteration + 1}/{settings.max_implement_iterations})...")
 
-            if len(plan.changes) >= settings.parallel_threshold:
+            if settings.experimental_parallel and len(plan.changes) >= settings.parallel_threshold:
+                import warnings
+                warnings.warn(
+                    "parallel_implementer is experimental and may produce race conditions",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
                 await emit(Phase.IMPLEMENTING, f"[parallel] {len(plan.changes)} changes across {settings.max_parallel_workers} workers")
                 async for log_line in execute_plan_parallel(plan, workspace, max_workers=settings.max_parallel_workers):
                     await emit(Phase.IMPLEMENTING, log_line)
