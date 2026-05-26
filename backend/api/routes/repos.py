@@ -83,3 +83,26 @@ async def delete_memory(repo_id: str, memory_id: str, session: Session = Depends
     if not found:
         raise HTTPException(status_code=404, detail="Memory entry not found")
     return {"deleted": memory_id}
+
+
+@repo_router.post("/{repo_id}/reindex")
+async def reindex_repo(
+    repo_id: str,
+    background: BackgroundTasks,
+    session: Session = Depends(get_session),
+):
+    repo = session.get(Repo, repo_id)
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repo not found")
+
+    async def _do_reindex():
+        from pathlib import Path
+        from config import settings
+        from agent.orchestrator import _index_repository
+
+        workspace = settings.workspace_path / repo_id
+        if workspace.exists():
+            await _index_repository(repo, workspace, force=True)
+
+    background.add_task(_do_reindex)
+    return {"status": "reindex queued", "repo_id": repo_id}

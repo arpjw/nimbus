@@ -1,7 +1,11 @@
-import aiofiles
+from __future__ import annotations
+
+import fnmatch
+import re
 from pathlib import Path
 from typing import Optional
-import fnmatch
+
+import aiofiles
 
 IGNORE_PATTERNS = [
     "*.pyc", "__pycache__", ".git", "node_modules", ".next",
@@ -33,18 +37,29 @@ def _is_text(path: Path) -> bool:
     return path.suffix in TEXT_EXTENSIONS or path.name in TEXT_EXTENSIONS
 
 
-async def read_file(root: Path, relative_path: str) -> str:
+def _check_path(root: Path, relative_path: str) -> Path:
     full = (root / relative_path).resolve()
-    if not str(full).startswith(str(root.resolve())):
-        raise PermissionError("Path traversal attempt blocked")
+    try:
+        full.relative_to(root.resolve())
+    except ValueError:
+        raise PermissionError(f"path traversal blocked: {relative_path}")
+    if full.is_symlink():
+        target = full.resolve(strict=True)
+        try:
+            target.relative_to(root.resolve())
+        except ValueError:
+            raise PermissionError(f"symlink outside workspace blocked: {relative_path}")
+    return full
+
+
+async def read_file(root: Path, relative_path: str) -> str:
+    full = _check_path(root, relative_path)
     async with aiofiles.open(full, "r", encoding="utf-8", errors="replace") as f:
         return await f.read()
 
 
 async def write_file(root: Path, relative_path: str, content: str) -> str:
-    full = (root / relative_path).resolve()
-    if not str(full).startswith(str(root.resolve())):
-        raise PermissionError("Path traversal attempt blocked")
+    full = _check_path(root, relative_path)
     full.parent.mkdir(parents=True, exist_ok=True)
     async with aiofiles.open(full, "w", encoding="utf-8") as f:
         await f.write(content)
@@ -64,7 +79,6 @@ async def list_files(root: Path, max_files: int = 2000) -> list[dict]:
 
 async def search_in_files(root: Path, pattern: str, file_glob: Optional[str] = None) -> list[dict]:
     matches = []
-    import re
     try:
         regex = re.compile(pattern)
     except re.error:

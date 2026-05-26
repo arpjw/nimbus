@@ -98,11 +98,15 @@ async def create_task_internal(
     repo = session.get(Repo, repo_id)
     if not repo:
         raise HTTPException(status_code=404, detail="Repo not found")
-    await check_rate_limit(api_key)
+    await check_rate_limit(api_key, session)
+    if api_key.id != "local":
+        from services.llm_client import check_spend_cap
+        await check_spend_cap(api_key.id)
     task = Task(
         workspace_id=workspace_id,
         repo_id=repo_id,
         description=description,
+        api_key_id=api_key.id if api_key.id != "local" else None,
         issue_number=issue_number,
         repo_full_name=repo_full_name,
     )
@@ -131,12 +135,16 @@ async def create_task(
     if not repo:
         raise HTTPException(status_code=404, detail="Repo not found")
 
-    await check_rate_limit(api_key)
+    await check_rate_limit(api_key, session)
+    if api_key.id != "local":
+        from services.llm_client import check_spend_cap
+        await check_spend_cap(api_key.id)
 
     task = Task(
         workspace_id=body.workspace_id,
         repo_id=body.repo_id,
         description=body.description,
+        api_key_id=api_key.id if api_key.id != "local" else None,
         issue_number=body.issue_number,
         repo_full_name=body.repo_full_name,
     )
@@ -145,7 +153,6 @@ async def create_task(
     session.refresh(task)
 
     if api_key.id != "local":
-        api_key.task_count_month += 1
         api_key.last_used_at = datetime.now(timezone.utc)
         session.add(api_key)
         session.commit()
@@ -179,6 +186,31 @@ async def _publish_approval(approval_key: str, approved: bool) -> None:
         raise HTTPException(status_code=409, detail="Task is not awaiting approval")
     result_key = f"{_APPROVAL_RESULT_PREFIX}{approval_key}"
     await redis_client.lpush(result_key, json.dumps({"approved": approved}))
+
+
+class PlanPatch(BaseModel):
+    changes: list[dict]
+
+
+@router.patch("/{task_id}/plan")
+async def patch_plan(
+    task_id: str,
+    body: PlanPatch,
+    session: Session = Depends(get_session),
+    api_key: ApiKey = Depends(require_api_key),
+):
+    task = session.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.phase != Phase.AWAITING_APPROVAL:
+        raise HTTPException(status_code=409, detail="Plan can only be edited while awaiting approval")
+    existing = json.loads(task.plan) if task.plan else {}
+    existing["changes"] = body.changes
+    task.plan = json.dumps(existing)
+    task.updated_at = datetime.now(timezone.utc)
+    session.add(task)
+    session.commit()
+    return {"status": "updated", "changes": len(body.changes)}
 
 
 @router.post("/{task_id}/approve")

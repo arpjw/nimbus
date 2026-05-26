@@ -53,7 +53,21 @@ def get_installed_plugins() -> dict:
     return _load_plugins_config().get("plugins", {})
 
 
-def install_plugin(package_name: str) -> bool:
+_VERIFIED_PREFIX = "nimbus-plugin-"
+
+
+def is_verified_plugin(package_name: str) -> bool:
+    base = package_name.split("==")[0].split("@")[0].strip().lower()
+    return base.startswith(_VERIFIED_PREFIX)
+
+
+def install_plugin(package_name: str, allow_untrusted: bool = False) -> bool:
+    if not is_verified_plugin(package_name) and not allow_untrusted:
+        raise ValueError(
+            f"'{package_name}' is not a verified Nimbus plugin. "
+            f"Verified plugins start with '{_VERIFIED_PREFIX}'. "
+            "Pass --allow-untrusted to install anyway."
+        )
     result = subprocess.run(
         [sys.executable, "-m", "pip", "install", package_name, "--break-system-packages"],
         capture_output=True,
@@ -63,6 +77,7 @@ def install_plugin(package_name: str) -> bool:
         config = _load_plugins_config()
         config.setdefault("plugins", {})[package_name] = {
             "package": package_name,
+            "verified": is_verified_plugin(package_name),
             "installed_at": __import__("datetime").datetime.utcnow().isoformat(),
         }
         _save_plugins_config(config)

@@ -1,3 +1,6 @@
+from logging_config import configure_logging
+configure_logging()
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -50,11 +53,12 @@ _CORS_HEADERS = {
 }
 
 
+_log = __import__("logging").getLogger(__name__)
+
+
 @app.exception_handler(Exception)
 async def universal_exception_handler(request: Request, exc: Exception):
-    import traceback
-    print(f"Unhandled exception on {request.url}: {exc}")
-    traceback.print_exc()
+    _log.exception("Unhandled exception on %s: %s", request.url, exc)
     from fastapi import HTTPException
     if isinstance(exc, HTTPException):
         return JSONResponse(
@@ -430,6 +434,8 @@ async def custom_swagger_ui():
 
 
 def migrate_apikey_table():
+    import logging
+    _mlog = logging.getLogger(__name__)
     from sqlalchemy import text
     from database import engine
     try:
@@ -437,21 +443,29 @@ def migrate_apikey_table():
             try:
                 conn.execute(text("ALTER TABLE apikey ADD COLUMN user_id VARCHAR"))
                 conn.commit()
-                print("Migrated: added user_id to apikey table")
+                _mlog.info("Migrated: added user_id to apikey table")
             except Exception:
                 pass
     except Exception as e:
-        print(f"Warning: apikey migration failed: {e}")
+        _mlog.warning("apikey migration failed: %s", e)
 
 
 @app.on_event("startup")
 async def startup():
+    import logging
     init_db()
     migrate_apikey_table()
     from services.skills import migrate_skills_table
     migrate_skills_table()
     SkillsService().seed_builtins()
     AutomationEngine().schedule_all()
+    from services.reaper import start_reaper
+    start_reaper(interval_seconds=1800)
+    if not settings.require_api_key and not settings.nimbus_open_mode:
+        logging.warning(
+            "API key enforcement is OFF and NIMBUS_OPEN_MODE is unset. "
+            "Set REQUIRE_API_KEY=true for production deployments."
+        )
 
 
 @app.get("/health")

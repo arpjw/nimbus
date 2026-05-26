@@ -177,7 +177,7 @@ Be concise but complete. If you don't know something from the context, say so cl
             console.print()
 
     async def _do_search(self, query: str):
-        from services.embedding import EmbeddingService
+        from nimbus_core.embedding import EmbeddingService
 
         try:
             collection = self.executor.chroma.get_collection(self.executor.collection_name)

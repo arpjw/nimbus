@@ -108,7 +108,12 @@ _VERDICT_COLOR = {
 
 def version_callback(value: bool):
     if value:
-        typer.echo("nimbus 1.1.0")
+        try:
+            from importlib.metadata import version
+            ver = version("nimbus-ai")
+        except Exception:
+            ver = "1.5.0"
+        typer.echo(f"nimbus {ver}")
         raise typer.Exit()
 
 
@@ -183,7 +188,7 @@ OVERALL: excellent|good|needs-work|major-issues
 SUMMARY: one sentence
 
 Diff:
-{diff_text[:6000]}"""
+{diff_text}"""
         }]
     )
 
@@ -245,7 +250,7 @@ def search(
     """Semantic search over your indexed codebase."""
     from cli.local_executor import LocalExecutor
     from cli.renderer import console, GOLD, FAINT
-    from services.embedding import EmbeddingService
+    from nimbus_core.embedding import EmbeddingService
 
     async def _search():
         executor = LocalExecutor(Path.cwd())
@@ -1164,19 +1169,36 @@ def plugin_list():
 
 
 @plugin_app.command("install")
-def plugin_install(package: str = typer.Argument(..., help="Package name e.g. nimbus-plugin-jira")):
+def plugin_install(
+    package: str = typer.Argument(..., help="Package name e.g. nimbus-plugin-jira"),
+    allow_untrusted: bool = typer.Option(False, "--allow-untrusted", help="Install plugins not in the verified nimbus-plugin-* namespace"),
+):
     """Install a Nimbus plugin from PyPI."""
-    from cli.plugin_manager import install_plugin
+    from cli.plugin_manager import install_plugin, is_verified_plugin
     from cli.renderer import console, GOLD, GREEN, RED, FAINT
+
+    if not is_verified_plugin(package) and not allow_untrusted:
+        console.print(f"\n  [{RED}]blocked: '{package}' is not a verified Nimbus plugin[/{RED}]")
+        console.print(f"  [{FAINT}]verified plugins start with 'nimbus-plugin-'[/{FAINT}]")
+        console.print(f"  [{FAINT}]use --allow-untrusted to install anyway (not recommended)[/{FAINT}]\n")
+        raise typer.Exit(1)
+
+    if not is_verified_plugin(package):
+        console.print(f"\n  [yellow]warning: installing unverified plugin '{package}'[/yellow]")
+        console.print(f"  [{FAINT}]unverified plugins can execute arbitrary code[/{FAINT}]\n")
 
     console.print(f"\n  [{FAINT}]installing {package}...[/{FAINT}]")
 
-    if install_plugin(package):
-        console.print(f"  [{GREEN}]installed: {package}[/{GREEN}]")
-        console.print(f"  [{FAINT}]run: nimbus plugin list to see available commands[/{FAINT}]\n")
-    else:
-        console.print(f"  [{RED}]failed to install {package}[/{RED}]")
-        console.print(f"  [{FAINT}]check that the package exists on PyPI[/{FAINT}]\n")
+    try:
+        if install_plugin(package, allow_untrusted=allow_untrusted):
+            console.print(f"  [{GREEN}]installed: {package}[/{GREEN}]")
+            console.print(f"  [{FAINT}]run: nimbus plugin list to see available commands[/{FAINT}]\n")
+        else:
+            console.print(f"  [{RED}]failed to install {package}[/{RED}]")
+            console.print(f"  [{FAINT}]check that the package exists on PyPI[/{FAINT}]\n")
+    except ValueError as e:
+        console.print(f"  [{RED}]{e}[/{RED}]\n")
+        raise typer.Exit(1)
 
 
 @plugin_app.command("uninstall")
@@ -1226,6 +1248,24 @@ def plugin_run(
     except Exception as e:
         console.print(f"\n  [{RED}]plugin error: {e}[/{RED}]\n")
         raise typer.Exit(1)
+
+
+@app.command()
+def reindex(
+    repo_id: str = typer.Argument(..., help="Repo ID to force re-index"),
+    backend: str = typer.Option("http://localhost:8000", help="Nimbus backend URL"),
+    api_key: Optional[str] = typer.Option(None, envvar="NIMBUS_API_KEY"),
+):
+    import httpx
+
+    headers = {"X-API-Key": api_key} if api_key else {}
+    with httpx.Client(base_url=backend, headers=headers) as client:
+        resp = client.post(f"/repos/{repo_id}/reindex")
+        if resp.status_code == 200:
+            console.print(f"  Reindex queued for repo {repo_id}")
+        else:
+            console.print(f"  [{RED}]Error {resp.status_code}: {resp.text}[/{RED}]")
+            raise typer.Exit(1)
 
 
 def main():

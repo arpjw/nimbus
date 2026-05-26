@@ -23,7 +23,9 @@ async def run_command(
     timeout: int = 120,
     env: dict | None = None,
 ) -> ShellResult:
-    if not cmd or cmd[0] not in ALLOWED_COMMANDS:
+    if not cmd:
+        return ShellResult(returncode=1, stdout="", stderr="Empty command not allowed", passed=False)
+    if cmd[0] not in ALLOWED_COMMANDS:
         return ShellResult(returncode=1, stdout="", stderr=f"Command '{cmd[0]}' not allowed", passed=False)
 
     import os

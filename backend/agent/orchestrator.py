@@ -26,6 +26,7 @@ from nimbus_core.vector_store import VectorStore
 from tools.git_tools import GitManager
 from tools.file_tools import list_files, read_file
 from nimbus_core.chunker import chunk_file
+from services.repo_config import load_repo_config, check_protected_branch, filter_denied_paths
 
 _embedding_service = EmbeddingService()
 _vector_store = VectorStore()
@@ -96,10 +97,30 @@ async def _wait_for_approval(
     return json.loads(data).get("approved", False)
 
 
-async def _index_repository(repo: Repo, workspace: Path) -> None:
+def _sha256(content: str) -> str:
+    import hashlib
+    return hashlib.sha256(content.encode()).hexdigest()
+
+
+async def _index_repository(repo: Repo, workspace: Path, force: bool = False) -> None:
+    import json as _json
+    from models.file_index import FileIndexState
+    from sqlmodel import select as _select
+
     files = await list_files(workspace)
     all_docs, all_ids, all_metas = [], [], []
     bm25_docs, bm25_metas = [], []
+    skipped = 0
+
+    with Session(engine) as idx_session:
+        existing: dict[str, FileIndexState] = {
+            s.file_path: s
+            for s in idx_session.exec(
+                _select(FileIndexState).where(FileIndexState.repo_id == repo.id)
+            ).all()
+        }
+
+    current_paths: set[str] = set()
 
     for file_info in files:
         try:
@@ -107,7 +128,17 @@ async def _index_repository(repo: Repo, workspace: Path) -> None:
         except Exception:
             continue
 
-        file_chunks = await chunk_file(file_info["path"], content, repo.id)
+        file_path = file_info["path"]
+        current_paths.add(file_path)
+        content_hash = _sha256(content)
+
+        state = existing.get(file_path)
+        if not force and state and state.content_hash == content_hash:
+            skipped += 1
+            continue
+
+        file_chunks = await chunk_file(file_path, content, repo.id)
+        chunk_ids = []
         for chunk in file_chunks:
             meta = {
                 "chunk_id": chunk["chunk_id"],
@@ -124,6 +155,27 @@ async def _index_repository(repo: Repo, workspace: Path) -> None:
             all_metas.append(meta)
             bm25_docs.append(chunk["text"])
             bm25_metas.append(meta)
+            chunk_ids.append(chunk["chunk_id"])
+
+        with Session(engine) as idx_session:
+            new_state = FileIndexState(
+                id=f"{repo.id}:{file_path}",
+                repo_id=repo.id,
+                file_path=file_path,
+                content_hash=content_hash,
+                chunk_ids=_json.dumps(chunk_ids),
+            )
+            idx_session.merge(new_state)
+            idx_session.commit()
+
+    deleted_paths = set(existing.keys()) - current_paths
+    if deleted_paths:
+        with Session(engine) as idx_session:
+            for fp in deleted_paths:
+                state = idx_session.get(FileIndexState, f"{repo.id}:{fp}")
+                if state:
+                    idx_session.delete(state)
+            idx_session.commit()
 
     if all_docs:
         embeddings = await _embedding_service.embed_documents(all_docs)
@@ -136,7 +188,7 @@ async def _index_repository(repo: Repo, workspace: Path) -> None:
             db_repo.status = RepoStatus.INDEXED
             db_repo.indexed_at = datetime.utcnow()
             db_repo.file_count = len(files)
-            db_repo.chunk_count = len(all_docs)
+            db_repo.chunk_count = len(all_docs) + skipped
             session.add(db_repo)
             session.commit()
 
@@ -188,11 +240,19 @@ async def run_task(
         _update_task(task.id, phase=Phase.CLONING)
         git_repo = await _git_manager.clone(repo.url, workspace)
 
+        repo_config = load_repo_config(workspace)
+
         branch_name = _git_manager.generate_branch_name(task.description)
+        check_protected_branch(repo_config, branch_name)
         await _git_manager.create_branch(git_repo, branch_name)
         _update_task(task.id, branch_name=branch_name)
         await emit(Phase.CLONING, f"Branch created: {branch_name}")
         await _notify("clone", f"Cloned {repo.url} -- branch: {branch_name}")
+
+        if repo_config.planner_model:
+            settings.planner_model = repo_config.planner_model
+        if repo_config.implementer_model:
+            settings.implementer_model = repo_config.implementer_model
 
         await emit(Phase.INDEXING, "Building Voyage AI code embeddings (voyage-code-2)...")
         _update_task(task.id, phase=Phase.INDEXING)
@@ -205,6 +265,11 @@ async def run_task(
         file_tree = await _build_file_tree(workspace)
         memories = await read_repo_memory(repo.id, task.description)
         plan = await generate_plan(task.description, [repo.id], _rag_service, file_tree, memories=memories, skill_name=skill_name, api_key_id=api_key_id)
+        if repo_config.denied_paths:
+            filtered = filter_denied_paths(repo_config, plan.changes)
+            if len(filtered) < len(plan.changes):
+                await emit(Phase.PLANNING, f"Removed {len(plan.changes) - len(filtered)} denied-path changes per .nimbus.toml")
+                plan = Plan(summary=plan.summary, changes=filtered, raw=plan.raw)
         _update_task(task.id, plan=plan.raw)
         await emit(Phase.PLANNING, f"Plan: {plan.summary}", {"changes": len(plan.changes)})
         await _notify("plan", f"Plan: {plan.summary} ({len(plan.changes)} changes)")
@@ -229,6 +294,18 @@ async def run_task(
             await emit(Phase.FAILED, "Rejected by user")
             return
 
+        with Session(engine) as _reload_sess:
+            _fresh = _reload_sess.get(Task, task.id)
+            if _fresh and _fresh.plan:
+                import json as _json
+                _data = _json.loads(_fresh.plan)
+                from agent.planner import FileChange
+                plan = Plan(
+                    summary=plan.summary,
+                    changes=[FileChange(**c) for c in _data.get("changes", plan.changes)],
+                    raw=_fresh.plan,
+                )
+
         for iteration in range(settings.max_implement_iterations):
             _update_task(task.id, phase=Phase.IMPLEMENTING, iteration=iteration + 1)
             await emit(Phase.IMPLEMENTING, f"Implementing (iteration {iteration + 1}/{settings.max_implement_iterations})...")
@@ -244,7 +321,7 @@ async def run_task(
                 async for log_line in execute_plan_parallel(plan, workspace, max_workers=settings.max_parallel_workers):
                     await emit(Phase.IMPLEMENTING, log_line)
             else:
-                async for log_line in execute_plan(plan, workspace):
+                async for log_line in execute_plan(plan, workspace, task_id=task.id, api_key_id=api_key_id):
                     await emit(Phase.IMPLEMENTING, log_line)
 
             await _git_manager.commit_all(git_repo, f"nimbus: implement task (iteration {iteration + 1})")
@@ -305,7 +382,8 @@ async def run_task(
         await _notify("pr", f"PR created: {pr_url}")
 
         await emit(Phase.REVIEWING, "Performing self-review (Claude Sonnet)...")
-        review_result = await self_review(pr_url, _git_manager)
+        _static_issues = verification.structured_issues if verification is not None else []
+        review_result = await self_review(pr_url, _git_manager, structured_issues=_static_issues)
         await _git_manager.post_pr_comment(pr_url, review_result.body)
         await emit(Phase.REVIEWING, f"Self-review posted -- verdict: {review_result.verdict} ({review_result.issues_found} issues)")
 

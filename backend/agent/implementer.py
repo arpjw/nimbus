@@ -3,20 +3,19 @@ Implementer: Claude Sonnet drives an agentic tool-use loop to execute the plan,
 reading and writing files in the cloned workspace.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import AsyncGenerator
-
-import anthropic
+from typing import AsyncGenerator, Optional
 
 from agent.planner import Plan
 from config import settings
 from tools.file_tools import read_file, write_file, list_files, search_in_files
 from services.claude_code import run_claude_code, claude_code_available
+from services.llm_client import instrumented_anthropic_client
 
-client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-IMPLEMENTER_SYSTEM = """You are Nimbus Implementer — an autonomous software engineer.
+IMPLEMENTER_SYSTEM = """You are Nimbus Implementer, an autonomous software engineer.
 
 You are given an implementation plan and a cloned repository. Your job is to execute
 the plan precisely by reading relevant files for full context, then writing the changes.
@@ -100,6 +99,8 @@ TOOLS = [
 async def execute_plan(
     plan: Plan,
     workspace: Path,
+    task_id: Optional[str] = None,
+    api_key_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     plan_text = "\n".join(
         f"- [{c.action.upper()}] {c.path}: {c.description}" for c in plan.changes
@@ -111,8 +112,12 @@ async def execute_plan(
         }
     ]
 
-    for _ in range(50):
-        response = await client.messages.create(
+    llm = instrumented_anthropic_client("implementer", task_id=task_id, api_key_id=api_key_id)
+    max_iterations = getattr(settings, "max_implementer_iterations", 30)
+    _max_tokens_retried = False
+
+    for _ in range(max_iterations):
+        response = await llm.messages.create(
             model=settings.implementer_model,
             max_tokens=8192,
             system=IMPLEMENTER_SYSTEM,
@@ -124,6 +129,23 @@ async def execute_plan(
 
         if response.stop_reason == "end_turn":
             yield "Implementation complete (no more tool calls)."
+            break
+
+        if response.stop_reason == "refusal":
+            yield "[error] Implementer refused the task."
+            break
+
+        if response.stop_reason == "max_tokens":
+            if _max_tokens_retried:
+                yield "[warn] Implementer hit max_tokens twice -- terminating."
+                break
+            _max_tokens_retried = True
+            yield "[warn] Response truncated at max_tokens -- requesting continuation."
+            messages.append({"role": "user", "content": "Continue from where you stopped."})
+            continue
+
+        if response.stop_reason in ("stop_sequence", "pause_turn"):
+            yield f"[info] Stop reason: {response.stop_reason}."
             break
 
         tool_results = []
@@ -153,7 +175,7 @@ async def execute_plan(
                         if claude_code_available():
                             result = await run_claude_code(inp["prompt"], workspace)
                         else:
-                            result = "Claude Code CLI not available — implement manually."
+                            result = "Claude Code CLI not available -- implement manually."
                     elif name == "finish_implementation":
                         yield f"[done] {inp.get('summary', 'Implementation finished.')}"
                         done = True

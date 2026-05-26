@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     reviewer_model: str = "claude-sonnet-4-6"
 
     max_implement_iterations: int = 5
+    max_implementer_iterations: int = 30
     max_fix_iterations: int = 3
 
     chroma_persist_dir: str = "./.chroma"
@@ -37,8 +38,12 @@ class Settings(BaseSettings):
     max_parallel_workers: int = 3
     experimental_parallel: bool = False
 
-    require_api_key: bool = False
+    require_api_key: bool = True
+    nimbus_open_mode: bool = False
     free_tier_monthly_limit: int = 10
+    encryption_key: str = ""
+    sandbox_verification: bool = False
+    sandbox_image: str = "python:3.12-slim"
 
     ws_ping_interval: int = 20
     cors_origins: list[str] = [
@@ -47,6 +52,8 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:3001",
     ]
+
+    openai_api_key: str = ""
 
     slack_bot_token: str = ""
     slack_signing_secret: str = ""

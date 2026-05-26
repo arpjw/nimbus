@@ -1,11 +1,11 @@
 import hashlib
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import Depends, Header, HTTPException
-from sqlmodel import Field, Session, SQLModel, select
+from sqlmodel import Field, Session, SQLModel, select, func
 
 from database import get_session
 
@@ -21,6 +21,8 @@ class ApiKey(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_used_at: Optional[datetime] = None
     user_id: Optional[str] = Field(default=None, foreign_key="user.id")
+    user_anthropic_key_encrypted: Optional[str] = None
+    user_voyage_key_encrypted: Optional[str] = None
 
 
 def generate_api_key() -> tuple[str, str]:
@@ -60,11 +62,20 @@ async def require_api_key(
     return api_key
 
 
-async def check_rate_limit(api_key: ApiKey) -> None:
+async def check_rate_limit(api_key: ApiKey, session: Session) -> None:
     from config import settings
+    from models.task import Task
 
-    if api_key.tier == "free" and api_key.task_count_month >= settings.free_tier_monthly_limit:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Free tier limit of {settings.free_tier_monthly_limit} tasks/month reached",
-        )
+    if api_key.tier == "free":
+        since = datetime.now(timezone.utc) - timedelta(days=30)
+        count = session.exec(
+            select(func.count(Task.id)).where(
+                Task.api_key_id == api_key.id,
+                Task.created_at >= since,
+            )
+        ).one()
+        if count >= settings.free_tier_monthly_limit:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Free tier limit of {settings.free_tier_monthly_limit} tasks/month reached",
+            )

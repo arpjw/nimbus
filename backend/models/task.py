@@ -52,6 +52,7 @@ class Task(SQLModel, table=True):
     workspace_id: str
     repo_id: str
     description: str
+    api_key_id: Optional[str] = Field(default=None, index=True)
     branch_name: Optional[str] = None
     pr_url: Optional[str] = None
     phase: Phase = Phase.QUEUED

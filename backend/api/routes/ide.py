@@ -43,14 +43,12 @@ async def _verify_api_key(
     try:
         from api.routes.auth import decode_nimbus_token
         user_id = decode_nimbus_token(token)
-        return ApiKey(
-            id=user_id,
-            key="",
-            name="jwt",
-            tier="free",
-            user_id=user_id,
-            created_at=datetime.utcnow(),
-        )
+        api_key = db.exec(select(ApiKey).where(ApiKey.user_id == user_id)).first()
+        if api_key:
+            return api_key
+        raise HTTPException(status_code=401, detail="No API key associated with this account")
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
 

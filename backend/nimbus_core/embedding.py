@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import logging
 import voyageai
 from typing import Sequence
 
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
 from nimbus_core.config import settings
+
+_log = logging.getLogger(__name__)
 
 
 class EmbeddingService:
@@ -16,22 +21,28 @@ class EmbeddingService:
             self._client = voyageai.AsyncClient(api_key=settings.voyage_api_key)
         return self._client
 
-    async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        stop=stop_after_attempt(5),
+        reraise=True,
+    )
+    async def _embed_with_retry(self, texts: list[str], input_type: str) -> list[list[float]]:
         client = self._get_client()
+        result = await client.embed(texts, model=self._model, input_type=input_type)
+        return result.embeddings
+
+    async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
         embeddings = []
         batch = settings.embedding_batch_size
         for i in range(0, len(texts), batch):
             chunk = list(texts[i : i + batch])
-            result = await client.embed(chunk, model=self._model, input_type="document")
-            embeddings.extend(result.embeddings)
+            embeddings.extend(await self._embed_with_retry(chunk, "document"))
         return embeddings
 
     async def embed_query(self, text: str) -> list[float]:
-        client = self._get_client()
-        result = await client.embed([text], model=self._model, input_type="query")
-        return result.embeddings[0]
+        results = await self._embed_with_retry([text], "query")
+        return results[0]
 
     async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
-        client = self._get_client()
-        result = await client.embed(list(texts), model=self._model, input_type="query")
-        return result.embeddings
+        return await self._embed_with_retry(list(texts), "query")

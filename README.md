@@ -12,17 +12,29 @@ Nimbus plans, implements, and reviews code against real repositories — entirel
 
 ---
 
+## Status
+
+| Feature | State |
+|---|---|
+| Core pipeline (plan, implement, verify, PR) | Stable |
+| CLI (`nimbus run`, `nimbus diff`, `nimbus chat`, `nimbus search`) | Stable |
+| Web IDE (Monaco, terminal, file tree) | Beta |
+| Slack / Linear integrations | Beta |
+| Skill marketplace | Beta |
+| Agent pipelines | Beta |
+| GitHub Actions (`arpjw/nimbus-action@v1`) | Experimental |
+| Python SDK (`nimbus-sdk`) | Experimental |
+| TypeScript SDK (`@nimbus-ai/client`) | Experimental |
+| Chrome Extension | Experimental |
+| Homebrew tap | Experimental |
+| VS Code Extension | Experimental |
+
+---
+
 ## Install
 
 ```bash
-# pip (recommended)
 pip install nimbus-ai
-
-# Homebrew
-brew tap arpjw/tap && brew install nimbus
-
-# curl
-curl -fsSL https://get-nimbus.com/install | sh
 ```
 
 Set your API keys:
@@ -46,7 +58,7 @@ nimbus
 Nimbus runs a 10-phase pipeline on every task:
 
 ```
-Clone → Index → Plan → [Approve] → Implement → Verify → [Diff] → Review → PR → Memory
+Clone -> Index -> Plan -> [Approve] -> Implement -> Verify -> [Diff] -> Review -> PR -> Memory
 ```
 
 Every task goes from a plain English description to a merged pull request. Nimbus indexes your codebase with hybrid RAG (voyage-code-2 + BM25), plans with Claude Opus, implements with Claude Sonnet, verifies against your real test suite, and opens a PR with a self-review attached.
@@ -58,6 +70,8 @@ Every task goes from a plain English description to a merged pull request. Nimbu
 ```bash
 nimbus                          # Interactive REPL — start here
 nimbus run "task description"   # Run a task directly
+nimbus run --tdd "task"         # TDD mode: generate failing tests first, implement to pass
+nimbus run --agent <name>       # Run a built-in agent
 nimbus chat                     # Ask questions about your codebase
 nimbus diff [rev-range]         # Review any diff (or pipe from stdin)
 nimbus diff --staged            # Review staged changes before committing
@@ -70,20 +84,19 @@ nimbus pair                     # Per-file suggestions on every save
 nimbus memory                   # View per-repo codebase memory
 nimbus explain <file>           # Explain a file in plain English
 nimbus agents                   # List built-in agents
-nimbus run --agent <name>       # Run a built-in agent
 nimbus skills list              # List available skills
 nimbus skills search <query>    # Search the skill marketplace
 nimbus skills install <name>    # Install a community skill
 nimbus skills publish           # Publish a skill to the marketplace
 nimbus pipeline list            # List configured pipelines
 nimbus pipeline run <name>      # Run a pipeline manually
-nimbus health                   # Run codebase health scan — 6 metrics with scores
+nimbus health                   # Codebase health scan — 6 metrics with scores
 nimbus models                   # Show configured models for each role
-nimbus run --tdd "task"         # TDD mode: generate failing tests first, implement to pass
 nimbus plugin list              # List installed CLI plugins
 nimbus plugin install <pkg>     # Install a plugin from PyPI
 nimbus plugin uninstall <pkg>   # Remove a plugin
 nimbus plugin run <name> <cmd>  # Run a plugin command
+nimbus reindex <repo-id>        # Force re-index a repository
 nimbus --version                # Show version
 ```
 
@@ -105,52 +118,33 @@ Run any agent with `nimbus run --agent <name>`:
 
 ---
 
-## SDKs
-
-**Python** (`pip install nimbus-sdk`):
-
-```python
-from nimbus_sdk import NimbusClient
-
-client = NimbusClient(api_key="nk_...")
-task = client.tasks.run("add rate limiting to /api/upload", repo="acme/api")
-task.wait()
-print(task.pr_url)
-```
-
-**TypeScript** (`npm install @nimbus-ai/client`):
-
-```typescript
-import { NimbusClient } from '@nimbus-ai/client';
-
-const client = new NimbusClient({ apiKey: 'nk_...' });
-const task = await client.tasks.run({ description: 'add rate limiting', repo: 'acme/api' });
-await task.wait();
-console.log(task.prUrl);
-```
-
----
-
 ## Custom models
 
 Configure which model to use for each role in `~/.nimbus/config.toml`:
 
 ```toml
 [models]
-planner     = "claude-opus-4-6"        # default
-implementer = "claude-sonnet-4-6"      # default
-reviewer    = "gpt-4o"                 # OpenAI
-chat        = "claude-sonnet-4-6"      # for nimbus chat
-
-[models.ollama]
-enabled  = false
-base_url = "http://localhost:11434"
-planner  = "deepseek-coder:33b"
+planner     = "claude-opus-4-6"
+implementer = "claude-sonnet-4-6"
+reviewer    = "claude-sonnet-4-6"
 ```
 
-Run `nimbus models` to see your current configuration.
+Supported providers: Anthropic (default), OpenAI (set `OPENAI_API_KEY` — reviewer uses `gpt-4o` automatically).
 
-Supported providers: Anthropic (default), OpenAI (`pip install openai`), Ollama (local).
+---
+
+## Bring your own key (BYOK)
+
+Store your own Anthropic or Voyage key on your account so Nimbus uses it for all tasks instead of billing against your plan:
+
+```bash
+curl -X POST https://api.get-nimbus.com/keys/byok \
+  -H "X-API-Key: nk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"anthropic_key": "sk-ant-...", "voyage_key": "pa-..."}'
+```
+
+Keys are stored encrypted at rest. When a BYOK key is configured the monthly spend cap does not apply.
 
 ---
 
@@ -159,41 +153,12 @@ Supported providers: Anthropic (default), OpenAI (`pip install openai`), Ollama 
 Extend the Nimbus CLI with community plugins:
 
 ```bash
-nimbus plugin install nimbus-plugin-jira    # adds nimbus plugin run jira <cmd>
-nimbus plugin install nimbus-plugin-notion  # adds nimbus plugin run notion <cmd>
-nimbus plugin list                          # show installed plugins
+nimbus plugin install nimbus-plugin-jira
+nimbus plugin list
+nimbus plugin run jira <cmd>
 ```
 
-Plugins are Python packages under `nimbus-plugin-*` on PyPI. See the [example plugin](https://github.com/arpjw/nimbus-plugin-example) to build your own.
-
----
-
-## GitHub Actions
-
-```yaml
-# .github/workflows/nimbus.yml
-name: Nimbus Review
-on: [pull_request]
-
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: arpjw/nimbus-action@v1
-        with:
-          task: review
-          api_key: ${{ secrets.NIMBUS_API_KEY }}
-```
-
-Available tasks: `review` `test-coverage` `security` `docs` or any freeform string.
-
----
-
-## Chrome Extension
-
-Install **Nimbus for GitHub** to add "Review with Nimbus" to every GitHub PR and "Implement with Nimbus" to every GitHub issue.
-
-Load unpacked from `chrome://extensions` → Developer mode → Load unpacked → select the `nimbus-chrome` folder.
+Plugins are Python packages prefixed with `nimbus-plugin-` on PyPI.
 
 ---
 
@@ -203,7 +168,7 @@ Open any GitHub repo in the browser — no install required:
 
 [get-nimbus.com/ide](https://get-nimbus.com/ide)
 
-Monaco editor, live terminal, file tree, and Nimbus chat panel. Runs on isolated Fly.io containers — one per session, auto-destroyed after 24 hours.
+Monaco editor, live terminal, file tree, and Nimbus chat panel. Runs on isolated containers per session.
 
 ---
 
@@ -211,11 +176,31 @@ Monaco editor, live terminal, file tree, and Nimbus chat panel. Runs on isolated
 
 | Surface | How |
 |---|---|
-| GitHub PRs/Issues | Comment `/nimbus` or use the Chrome extension |
+| GitHub PRs/Issues | Comment `/nimbus` on any issue or PR |
 | Slack | `/nimbus run "task"` slash command |
-| Linear | Assign issue with `nimbus` label → auto-implement |
-| VS Code / Cursor | Right-click file → Run with Nimbus |
-| GitHub Actions | `uses: arpjw/nimbus-action@v1` |
+| Linear | Assign issue with `nimbus` label to auto-implement |
+
+---
+
+## Per-repo configuration
+
+Drop a `.nimbus.toml` in your repo root to override defaults:
+
+```toml
+[paths]
+denied = ["secrets/", "*.pem"]
+
+[branches]
+protected = ["main", "release/*"]
+
+[models]
+planner     = "claude-opus-4-7"
+implementer = "claude-sonnet-4-6"
+
+[policy]
+require_human_approval = true
+block_on_severity      = "error"
+```
 
 ---
 
@@ -225,10 +210,8 @@ Monaco editor, live terminal, file tree, and Nimbus chat panel. Runs on isolated
 
 ```toml
 [core]
-auto_approve_confidence = 92    # auto-approve plans above this confidence
 default_branch = "main"
 editor = "nvim"
-sound = false
 
 [hooks]
 block_on = "high"               # pre-commit hook severity threshold
@@ -236,7 +219,7 @@ block_on = "high"               # pre-commit hook severity threshold
 [models]
 planner = "claude-opus-4-6"
 implementer = "claude-sonnet-4-6"
-reviewer = "claude-haiku-4-5-20251001"
+reviewer = "claude-sonnet-4-6"
 ```
 
 ---
@@ -259,72 +242,72 @@ npm install
 npm run dev
 ```
 
-Full self-hosting docs at [docs.get-nimbus.com/self-hosted/overview](https://docs.get-nimbus.com/self-hosted/overview).
-
 ---
 
 ## Ecosystem
 
-| Package | Install |
-|---|---|
-| CLI | `pip install nimbus-ai` |
-| Python SDK | `pip install nimbus-sdk` |
-| TypeScript SDK | `npm install @nimbus-ai/client` |
-| GitHub Action | `uses: arpjw/nimbus-action@v1` |
-| Chrome Extension | `arpjw/nimbus-chrome` |
-| VS Code Extension | `arpjw/nimbus-vscode` |
-| Homebrew tap | `brew tap arpjw/tap` |
-| Web IDE | [get-nimbus.com/ide](https://get-nimbus.com/ide) |
+| Package | Install | Status |
+|---|---|---|
+| CLI | `pip install nimbus-ai` | Stable |
+| Web IDE | [get-nimbus.com/ide](https://get-nimbus.com/ide) | Beta |
+| Python SDK | `pip install nimbus-sdk` | Experimental |
+| TypeScript SDK | `npm install @nimbus-ai/client` | Experimental |
+| GitHub Action | `uses: arpjw/nimbus-action@v1` | Experimental |
+| Chrome Extension | `arpjw/nimbus-chrome` | Experimental |
+| VS Code Extension | `arpjw/nimbus-vscode` | Experimental |
+
+---
+
+## Known limitations
+
+**Redis + ARQ task queue (not yet implemented)**: Tasks currently execute in-process on the FastAPI request handler. Under concurrent load this blocks the event loop. A proper ARQ worker queue with Redis pub/sub is planned but not yet shipped. Workaround: run a single uvicorn worker and limit concurrent tasks via the rate limiter.
+
+**Task reconciliation on restart (not yet implemented)**: If the server restarts while a task is in-flight, the task stays in its current phase forever. There is no reconciler that resets stuck tasks to `FAILED` on startup. Workaround: manually PATCH the task status, or set a short timeout in your client and retry.
 
 ---
 
 ## Changelog
 
+### v1.5.0 — May 2026
+- BYOK (bring your own key) — store encrypted Anthropic/Voyage keys per account; spend cap bypassed when BYOK is active
+- Incremental repository indexing — skip unchanged files via SHA256 content tracking
+- Per-repo `.nimbus.toml` config — override models, deny paths, protect branches
+- Editable plans — `PATCH /tasks/{id}/plan` lets users modify file changes before approval
+- Sandboxed verification — `SANDBOX_VERIFICATION=true` runs ruff/pytest/mypy inside Docker
+- Cross-provider self-review — reviewer uses `gpt-4o` when `OPENAI_API_KEY` is set
+- Static analysis override — APPROVE verdict upgraded to REQUEST_CHANGES when ruff reports errors
+- Skill safety — prompt injection scanning and Haiku moderation on skill publish
+- Structured JSON logging via structlog; optional Sentry integration
+
 ### v1.4.0 — Apr 28, 2026
-- Web IDE at `get-nimbus.com/ide` — Monaco editor, xterm.js terminal, isolated Fly.io containers per session
-- Built-in agents accessible directly from the IDE panel — one-click agent execution from the editor
-- Nimbus chat panel in the IDE — ask questions about the open repo without leaving the browser
+- Web IDE at `get-nimbus.com/ide` — Monaco editor, xterm.js terminal, isolated containers per session
+- Nimbus chat panel in the IDE
 
 ### v1.3.0 — Apr 27, 2026
-- Web IDE at `get-nimbus.com/ide` — Monaco editor, xterm.js terminal, Nimbus agents panel, file tree, no install required
-- `nimbus run --tdd` — TDD mode: generates a failing test suite first, implements until all tests pass
-- `nimbus health` — codebase health scan with 6 metrics (test coverage, tech debt, security, doc coverage, dep freshness, CI pass rate)
-- `nimbus models` — show and configure models per role (Anthropic/OpenAI/Ollama)
-- Custom model support — route each phase to any provider via `~/.nimbus/config.toml`
+- `nimbus run --tdd` — TDD mode: generate failing tests first, implement to pass
+- `nimbus health` — codebase health scan with 6 metrics
+- `nimbus models` — show configured models per role
 - CLI plugin system — `nimbus plugin install/list/run`, entry-point based discovery
-- Engineering velocity dashboard at `/dashboard/analytics`
 - `TaskMetrics` model tracking duration, success rate, cost per task
 
 ### v1.2.0 — Apr 26, 2026
-
 - `nimbus chat` — conversational codebase Q&A with retrieval-backed citations
 - `nimbus diff` — review any diff; pipe from stdin or pass revision range; `--exit-code` for CI
 - `nimbus install-hooks` — git pre-commit hook that runs `nimbus diff --staged`
 - `nimbus search` — semantic search over indexed codebase
-- Architecture-aware planning — extracts repo conventions and injects them into every plan
-- Automated PR description generation — structured Markdown descriptions on every PR
-- Chrome Extension — "Review with Nimbus" on every GitHub PR, "Implement with Nimbus" on every issue
-- Skill marketplace — `nimbus skills search/install/publish`, `/marketplace` on the web
-- Agent composition pipelines — YAML-defined multi-agent workflows with scheduling
-- GitHub Actions — `arpjw/nimbus-action@v1`
-- Python SDK — `pip install nimbus-sdk`
-- TypeScript SDK — `npm install @nimbus-ai/client`
+- Skill marketplace — `nimbus skills search/install/publish`
+- Agent composition pipelines
 
 ### v1.1.0 — Apr 26, 2026
-
-- Interactive terminal mode (`nimbus`) with live diffs, voice input, session replay
+- Interactive terminal mode (`nimbus`) with live diffs, session replay
 - 20 built-in agents across 7 categories
 - `nimbus watch` ambient mode, `nimbus pair` per-file suggestions
-- VS Code / Cursor extension
 - Slack slash commands, Linear webhook integration
-- Automations layer (webhook, cron, CI failure triggers)
-- Prism — plain English spec to ordered task queue
 - GitHub OAuth — personal dashboard, account-tied API keys
 
 ### v1.0.0 — Apr 25, 2026
-
 - Core 10-phase pipeline
-- GitHub App with `/nimbus` commands
+- GitHub App with `/nimbus` comments on issues
 - Self-improving PR reviewer
 - Persistent per-repo memory
 - Parallel implementation workers
@@ -336,7 +319,6 @@ Full self-hosting docs at [docs.get-nimbus.com/self-hosted/overview](https://doc
 - Website: [get-nimbus.com](https://get-nimbus.com)
 - Docs: [docs.get-nimbus.com](https://docs.get-nimbus.com)
 - Dashboard: [get-nimbus.com/dashboard](https://get-nimbus.com/dashboard)
-- Marketplace: [get-nimbus.com/marketplace](https://get-nimbus.com/marketplace)
 - API: [api.get-nimbus.com/docs](https://api.get-nimbus.com/docs)
 
 ---

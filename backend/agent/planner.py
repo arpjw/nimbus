@@ -3,16 +3,15 @@ Planner: uses RAG context + Claude Opus to produce a structured implementation
 plan as a JSON list of FileChange objects.
 """
 
+from __future__ import annotations
+
 import json
 from dataclasses import dataclass
 from typing import Any
 
-import anthropic
-
 from config import settings
 from services.rag import RAGService, RetrievedChunk
-
-client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+from services.llm_client import instrumented_anthropic_client
 
 
 @dataclass
@@ -30,7 +29,7 @@ class Plan:
     raw: str
 
 
-PLANNER_SYSTEM = """You are Nimbus Planner — an expert software architect that produces
+PLANNER_SYSTEM = """You are Nimbus Planner, an expert software architect that produces
 precise, minimal implementation plans.
 
 Given a task description and relevant code context retrieved via semantic search, output a
@@ -103,7 +102,8 @@ async def generate_plan(
 
     user_message += "\n\nProduce the implementation plan JSON now."
 
-    response = await client.messages.create(
+    llm = instrumented_anthropic_client("planner", task_id=None, api_key_id=api_key_id)
+    response = await llm.messages.create(
         model=settings.planner_model,
         max_tokens=4096,
         system=system,

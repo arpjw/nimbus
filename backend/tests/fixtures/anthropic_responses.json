@@ -1,0 +1,68 @@
+{
+  "plan_response": {
+    "id": "msg_test",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"summary\": \"Add a hello function\", \"changes\": [{\"path\": \"hello.py\", \"action\": \"create\", \"description\": \"Add hello function\", \"rationale\": \"New feature\"}]}"
+      }
+    ],
+    "model": "claude-opus-4-6",
+    "stop_reason": "end_turn",
+    "usage": {"input_tokens": 100, "output_tokens": 50}
+  },
+  "implementer_finish": {
+    "id": "msg_impl",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "tu_001",
+        "name": "finish_implementation",
+        "input": {"summary": "Created hello.py"}
+      }
+    ],
+    "model": "claude-sonnet-4-6",
+    "stop_reason": "tool_use",
+    "usage": {"input_tokens": 50, "output_tokens": 30}
+  },
+  "implementer_write_then_finish": {
+    "messages": [
+      {
+        "id": "msg_write",
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "tu_write",
+            "name": "write_file",
+            "input": {"path": "hello.py", "content": "def hello():\n    return 'hello'\n"}
+          }
+        ],
+        "model": "claude-sonnet-4-6",
+        "stop_reason": "tool_use",
+        "usage": {"input_tokens": 60, "output_tokens": 40}
+      },
+      {
+        "id": "msg_finish",
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "tu_finish",
+            "name": "finish_implementation",
+            "input": {"summary": "Done"}
+          }
+        ],
+        "model": "claude-sonnet-4-6",
+        "stop_reason": "tool_use",
+        "usage": {"input_tokens": 70, "output_tokens": 20}
+      }
+    ]
+  }
+}
