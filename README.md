@@ -229,6 +229,51 @@ npm run dev
 
 ---
 
+## MCP support
+
+Nimbus exposes an MCP server so Claude Code, Cursor, and other MCP-aware agents can open PRs and search your codebase as tools.
+
+```bash
+nimbus mcp   # starts the stdio MCP server
+```
+
+Add to Claude Code's `mcpServers` config:
+
+```json
+{
+  "mcpServers": {
+    "nimbus": { "command": "nimbus", "args": ["mcp"], "env": { "NIMBUS_API_KEY": "nk_..." } }
+  }
+}
+```
+
+Four tools exposed: `nimbus_create_task`, `nimbus_get_task_status`, `nimbus_search_codebase`, `nimbus_review_diff`. Full docs at [docs/mcp.md](docs/mcp.md).
+
+Nimbus can also consume external MCP servers (Linear, Sentry, GitHub Issues) during planning. Configure in `.nimbus.toml`:
+
+```toml
+[mcp]
+servers = [
+  { name = "linear", url = "https://mcp.linear.app/mcp", auth_env = "LINEAR_API_KEY" },
+]
+```
+
+---
+
+## Continuous mode
+
+Pin Nimbus to a repo for a fixed duration with a daily spend cap:
+
+```bash
+nimbus continuous start --repo owner/repo --cap-per-day 5 --duration 30d --label good-first-issue
+nimbus continuous status
+nimbus continuous stop <session-id>
+```
+
+Nimbus polls for open issues matching the label filter every 15 minutes, runs the full pipeline, and opens draft PRs for issues above the confidence threshold. Stops automatically when the daily cap is hit.
+
+---
+
 ## Status
 
 | Feature                             | State       |
@@ -238,7 +283,9 @@ npm run dev
 | Slack / Linear integrations         | Beta        |
 | Skill system (built-in agents)      | Beta        |
 | Agent pipelines                     | Beta        |
-| MCP server                          | Coming v1.6 |
+| MCP server                          | Beta        |
+| Confidence scoring                  | Stable      |
+| Continuous mode                     | Beta        |
 | Skill marketplace                   | Paused      |
 
 ---
@@ -258,6 +305,13 @@ in your client and retry.
 ---
 
 ## Changelog
+
+### v1.6.0 -- May 2026
+- MCP server: expose Nimbus as 4 tools to Claude Code, Cursor, and any MCP client (`nimbus mcp`)
+- MCP client: planner fetches context from Linear, Sentry, and other MCP servers via `.nimbus.toml [mcp]`
+- Confidence scoring: Haiku-rated 0-100 score and reasoning shown in approval prompt
+- Cost preview: estimated task cost shown before approval, calibrated from historical TokenUsage
+- Continuous mode: `nimbus continuous start` pins Nimbus to a repo with daily spend cap and confidence threshold
 
 ### v1.5.0 -- May 2026
 - BYOK -- store encrypted Anthropic/Voyage keys per account

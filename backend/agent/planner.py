@@ -65,6 +65,7 @@ async def generate_plan(
     memories: list[dict] | None = None,
     skill_name: str | None = None,
     api_key_id: str | None = None,
+    mcp_context: str | None = None,
 ) -> Plan:
     system = PLANNER_SYSTEM
     if skill_name and api_key_id:
@@ -99,6 +100,9 @@ async def generate_plan(
     if memories:
         bullets = "\n".join(f"- {m['text']}" for m in memories)
         user_message += f"\n\n## Repository Memory (past observations)\n{bullets}"
+
+    if mcp_context:
+        user_message += f"\n\n{mcp_context}"
 
     user_message += "\n\nProduce the implementation plan JSON now."
 

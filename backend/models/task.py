@@ -61,6 +61,9 @@ class Task(SQLModel, table=True):
     plan: Optional[str] = None
     issue_number: Optional[int] = None
     repo_full_name: Optional[str] = None
+    confidence_score: Optional[float] = None
+    confidence_reasoning: Optional[str] = None
+    estimated_cost_usd: Optional[float] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = None

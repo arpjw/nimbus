@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nimbus-ai"
-version = "1.5.0"
+version = "1.6.0"
 description = "Autonomous software engineering from your terminal"
 readme = "README.md"
 license = {text = "MIT"}
@@ -38,6 +38,7 @@ dependencies = [
     "websockets>=13.0",
     "tenacity>=8.2",
     "structlog>=24.1",
+    "mcp>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -53,7 +54,7 @@ Documentation = "https://github.com/arpjw/nimbus#readme"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["nimbus_core*", "cli*", "agent*", "prism*", "services*"]
+include = ["nimbus_core*", "cli*", "agent*", "prism*", "services*", "mcp_server*"]
 exclude = ["tests*"]
 
 [tool.setuptools.package-data]

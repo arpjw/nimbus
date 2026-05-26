@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 import redis.asyncio as aioredis
-from sqlmodel import Session
+from sqlmodel import Session, select, func
 
 from agent.planner import generate_plan, Plan
 from agent.implementer import execute_plan
@@ -27,6 +27,8 @@ from tools.git_tools import GitManager
 from tools.file_tools import list_files, read_file
 from nimbus_core.chunker import chunk_file
 from services.repo_config import load_repo_config, check_protected_branch, filter_denied_paths
+from services.confidence import score_confidence
+from services.cost_estimator import estimate_task_cost
 
 _embedding_service = EmbeddingService()
 _vector_store = VectorStore()
@@ -264,7 +266,18 @@ async def run_task(
         _update_task(task.id, phase=Phase.PLANNING)
         file_tree = await _build_file_tree(workspace)
         memories = await read_repo_memory(repo.id, task.description)
-        plan = await generate_plan(task.description, [repo.id], _rag_service, file_tree, memories=memories, skill_name=skill_name, api_key_id=api_key_id)
+
+        mcp_context: str | None = None
+        if repo_config.mcp_servers:
+            from services.mcp_client import fetch_mcp_context
+            try:
+                mcp_context = await fetch_mcp_context(repo_config.mcp_servers, task.id, task.description)
+                if mcp_context:
+                    await emit(Phase.PLANNING, f"MCP context fetched from {len(repo_config.mcp_servers)} server(s)")
+            except Exception as _mcp_exc:
+                await emit(Phase.PLANNING, f"MCP context fetch failed (continuing): {_mcp_exc}")
+
+        plan = await generate_plan(task.description, [repo.id], _rag_service, file_tree, memories=memories, skill_name=skill_name, api_key_id=api_key_id, mcp_context=mcp_context)
         if repo_config.denied_paths:
             filtered = filter_denied_paths(repo_config, plan.changes)
             if len(filtered) < len(plan.changes):
@@ -277,11 +290,35 @@ async def run_task(
         for change in plan.changes:
             await emit(Phase.PLANNING, f"  [{change.action.upper()}] {change.path}: {change.description[:80]}")
 
+        conf_score, conf_reasoning = await score_confidence(
+            task_id=task.id,
+            description=task.description,
+            plan_summary=plan.summary,
+            files_touched=[c.path for c in plan.changes],
+            repo_id=repo.id,
+            api_key_id=api_key_id,
+        )
+        _update_task(task.id, confidence_score=conf_score, confidence_reasoning=conf_reasoning)
+        await emit(Phase.PLANNING, f"Confidence: {conf_score:.0f}%", {"confidence": conf_score, "reasoning": conf_reasoning})
+
+        with Session(engine) as _cost_sess:
+            from models.token_usage import TokenUsage as _TU
+            planner_cost = _cost_sess.exec(
+                select(func.sum(_TU.cost_usd)).where(_TU.task_id == task.id)
+            ).one() or 0.0
+        estimated_cost = estimate_task_cost(len(plan.changes), planner_cost_incurred=float(planner_cost), repo_id=repo.id)
+        _update_task(task.id, estimated_cost_usd=estimated_cost)
+
         _update_task(task.id, phase=Phase.AWAITING_APPROVAL)
         await emit(
             Phase.AWAITING_APPROVAL,
             f"Plan ready: {len(plan.changes)} change(s) require approval",
-            {"changes": [{"path": c.path, "action": c.action, "description": c.description} for c in plan.changes]},
+            {
+                "changes": [{"path": c.path, "action": c.action, "description": c.description} for c in plan.changes],
+                "confidence": conf_score,
+                "confidence_reasoning": conf_reasoning,
+                "estimated_cost_usd": round(estimated_cost, 4),
+            },
         )
 
         approved = await _wait_for_approval(redis_client, task.id)

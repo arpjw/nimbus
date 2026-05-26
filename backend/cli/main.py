@@ -426,6 +426,11 @@ def run(
     api_key: Optional[str] = typer.Option(None, help="Nimbus API key (defaults to NIMBUS_API_KEY)"),
     skill: Optional[str] = typer.Option(None, help="Apply a named skill to this task"),
     tdd: bool = typer.Option(False, "--tdd", help="TDD mode: write tests first, implement to pass"),
+    confidence_threshold: int = typer.Option(
+        int(os.environ.get("NIMBUS_AUTO_APPROVE_CONFIDENCE", "80")),
+        "--confidence-threshold",
+        help="With --yes, auto-approve only when confidence >= threshold (default 80)",
+    ),
 ):
     """Submit a task to the Nimbus backend agent."""
     if tdd:
@@ -454,7 +459,7 @@ def run(
     if not task:
         print(Fore.RED + "Provide a task description or use --agent <name>", file=sys.stderr)
         raise typer.Exit(1)
-    asyncio.run(_run_remote(task, backend, yes, api_key, skill))
+    asyncio.run(_run_remote(task, backend, yes, api_key, skill, confidence_threshold))
 
 
 @app.command()
@@ -854,7 +859,7 @@ def skills_create(
     asyncio.run(_go())
 
 
-async def _run_remote(task: str, backend: str, yes: bool, api_key: Optional[str], skill: Optional[str]):
+async def _run_remote(task: str, backend: str, yes: bool, api_key: Optional[str], skill: Optional[str], confidence_threshold: int = 80):
     remote_url, repo_slug = get_git_remote()
     repo_name = repo_slug.split("/")[-1] if "/" in repo_slug else repo_slug
     k = api_key or os.environ.get("NIMBUS_API_KEY")
@@ -888,16 +893,44 @@ async def _run_remote(task: str, backend: str, yes: bool, api_key: Optional[str]
             print(_fmt_event(event))
             phase = event.get("phase", "")
             if phase == "awaiting_approval":
-                changes = event.get("data", {}).get("changes", [])
+                data = event.get("data", {})
+                changes = data.get("changes", [])
+                confidence = data.get("confidence")
+                cost_est = data.get("estimated_cost_usd")
                 print()
                 _print_plan_table(changes)
                 print()
+                if confidence is not None:
+                    conf_int = int(round(confidence))
+                    if confidence >= 70:
+                        conf_color = Fore.GREEN
+                    elif confidence >= 40:
+                        conf_color = Fore.YELLOW
+                    else:
+                        conf_color = Fore.RED
+                    conf_str = f"{conf_color}confidence: {conf_int}%{Style.RESET_ALL}"
+                else:
+                    conf_str = None
+                cost_str = f"est. cost: ${cost_est:.3f}" if cost_est is not None else None
+                meta = ", ".join(x for x in [conf_str, cost_str] if x)
+                n = len(changes)
+                prompt_suffix = f" ({meta})" if meta else ""
                 if yes:
+                    if confidence is not None and confidence < confidence_threshold:
+                        print(f"Confidence {confidence:.0f}% is below auto-approve threshold ({confidence_threshold}%).")
+                        try:
+                            answer = input(f"Proceed anyway? [y/N] ").strip().lower()
+                        except (EOFError, KeyboardInterrupt):
+                            print("\nAborted.")
+                            await client.reject_task(task_obj["id"])
+                            return
+                        if answer != "y":
+                            await client.reject_task(task_obj["id"])
+                            return
                     await client.approve_task(task_obj["id"])
                 else:
-                    n = len(changes)
                     try:
-                        answer = input(f"Proceed with {n} change{'s' if n != 1 else ''}? [y/N] ").strip().lower()
+                        answer = input(f"Proceed with {n} change{'s' if n != 1 else ''}{prompt_suffix}? [y/N] ").strip().lower()
                     except (EOFError, KeyboardInterrupt):
                         print("\nAborted.")
                         await client.reject_task(task_obj["id"])
@@ -1031,16 +1064,28 @@ async def _issue_remote(issue_url: str, backend: str, yes: bool, token: Optional
             print(_fmt_event(event))
             phase = event.get("phase", "")
             if phase == "awaiting_approval":
-                changes = event.get("data", {}).get("changes", [])
+                data = event.get("data", {})
+                changes = data.get("changes", [])
+                confidence = data.get("confidence")
+                cost_est = data.get("estimated_cost_usd")
                 print()
                 _print_plan_table(changes)
                 print()
+                if confidence is not None:
+                    conf_int = int(round(confidence))
+                    conf_color = Fore.GREEN if confidence >= 70 else (Fore.YELLOW if confidence >= 40 else Fore.RED)
+                    conf_str = f"{conf_color}confidence: {conf_int}%{Style.RESET_ALL}"
+                else:
+                    conf_str = None
+                cost_str = f"est. cost: ${cost_est:.3f}" if cost_est is not None else None
+                meta = ", ".join(x for x in [conf_str, cost_str] if x)
+                n = len(changes)
+                prompt_suffix = f" ({meta})" if meta else ""
                 if yes:
                     await client.approve_task(task_obj["id"])
                 else:
-                    n = len(changes)
                     try:
-                        answer = input(f"Proceed with {n} change{'s' if n != 1 else ''}? [y/N] ").strip().lower()
+                        answer = input(f"Proceed with {n} change{'s' if n != 1 else ''}{prompt_suffix}? [y/N] ").strip().lower()
                     except (EOFError, KeyboardInterrupt):
                         await client.reject_task(task_obj["id"])
                         return
@@ -1271,6 +1316,144 @@ def reindex(
         else:
             console.print(f"  [{RED}]Error {resp.status_code}: {resp.text}[/{RED}]")
             raise typer.Exit(1)
+
+
+continuous_app = typer.Typer(help="Continuous autonomous mode -- pin Nimbus to a repo.")
+app.add_typer(continuous_app, name="continuous")
+
+
+@continuous_app.command("start")
+def continuous_start(
+    repo: str = typer.Option(..., "--repo", help="Repo URL or name (e.g. owner/name)"),
+    cap_per_day: float = typer.Option(5.0, "--cap-per-day", help="Daily spend cap in USD"),
+    duration: str = typer.Option("30d", "--duration", help="Session duration (e.g. 7d, 30d)"),
+    label: Optional[str] = typer.Option(None, "--label", help="GitHub issue label filter"),
+    confidence: int = typer.Option(70, "--confidence", help="Minimum confidence threshold to auto-run (0-100)"),
+    backend_url: str = typer.Option("https://api.get-nimbus.com", "--backend", envvar="NIMBUS_BACKEND"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="NIMBUS_API_KEY"),
+):
+    """Start a continuous session against a repo."""
+    import httpx, re
+    from cli.renderer import console, GREEN, RED, FAINT
+
+    duration_days = 30
+    m = re.match(r"^(\d+)d$", duration)
+    if m:
+        duration_days = int(m.group(1))
+
+    headers = {"X-API-Key": api_key} if api_key else {}
+    try:
+        with httpx.Client(base_url=backend_url, headers=headers, timeout=15) as client:
+            repos_resp = client.get("/repos", params={"q": repo})
+            if repos_resp.status_code == 200:
+                repos_data = repos_resp.json()
+                repo_id = repos_data[0]["id"] if repos_data else None
+            else:
+                repo_id = None
+
+            if not repo_id:
+                console.print(f"  [{RED}]Repo not found: {repo}. Run 'nimbus reindex' first.[/{RED}]")
+                raise typer.Exit(1)
+
+            r = client.post("/continuous/sessions", json={
+                "repo_id": repo_id,
+                "daily_spend_cap_usd": cap_per_day,
+                "duration_days": duration_days,
+                "label_filter": label,
+                "confidence_threshold": confidence,
+            })
+            if r.status_code == 200:
+                s = r.json()
+                console.print(f"\n  [{GREEN}]Continuous session started[/{GREEN}]")
+                console.print(f"  ID: [{FAINT}]{s['id'][:8]}...[/{FAINT}]")
+                console.print(f"  Repo: {repo}")
+                console.print(f"  Cap: ${cap_per_day:.2f}/day -- Duration: {duration_days} days")
+                console.print(f"  Confidence threshold: {confidence}%")
+                if label:
+                    console.print(f"  Label filter: {label}")
+                console.print()
+            else:
+                console.print(f"  [{RED}]Error: {r.text}[/{RED}]")
+                raise typer.Exit(1)
+    except httpx.ConnectError:
+        console.print(f"  [{RED}]Cannot connect to backend: {backend_url}[/{RED}]")
+        raise typer.Exit(1)
+
+
+@continuous_app.command("status")
+def continuous_status(
+    backend_url: str = typer.Option("https://api.get-nimbus.com", "--backend", envvar="NIMBUS_BACKEND"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="NIMBUS_API_KEY"),
+):
+    """List active continuous sessions."""
+    import httpx
+    from cli.renderer import console, GOLD, GREEN, RED, FAINT
+    from rich.table import Table
+
+    headers = {"X-API-Key": api_key} if api_key else {}
+    try:
+        with httpx.Client(base_url=backend_url, headers=headers, timeout=10) as client:
+            r = client.get("/continuous/sessions")
+            if r.status_code != 200:
+                console.print(f"  [{RED}]Error: {r.text}[/{RED}]")
+                raise typer.Exit(1)
+            sessions = r.json()
+    except httpx.ConnectError:
+        console.print(f"  [{RED}]Cannot connect to backend: {backend_url}[/{RED}]")
+        raise typer.Exit(1)
+
+    if not sessions:
+        console.print(f"\n  [{FAINT}]No continuous sessions found.[/{FAINT}]\n")
+        return
+
+    console.print(f"\n  [{GOLD}]continuous sessions[/{GOLD}]\n")
+    table = Table.grid(padding=(0, 3))
+    table.add_column(style=FAINT, width=10)
+    table.add_column(style=f"bold {GOLD}", width=10)
+    table.add_column(style=FAINT)
+    table.add_column(style=FAINT)
+    for s in sessions:
+        status_color = GREEN if s["status"] == "active" else "red" if s["status"] == "stopped" else "yellow"
+        table.add_row(
+            s["id"][:8],
+            f"[{status_color}]{s['status']}[/{status_color}]",
+            f"${s['daily_spend_cap_usd']:.2f}/day",
+            f"{s['tasks_completed']} done / {s['tasks_failed']} failed",
+        )
+    console.print("  ", table)
+    console.print()
+
+
+@continuous_app.command("stop")
+def continuous_stop(
+    session_id: str = typer.Argument(..., help="Session ID (first 8 chars OK)"),
+    backend_url: str = typer.Option("https://api.get-nimbus.com", "--backend", envvar="NIMBUS_BACKEND"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="NIMBUS_API_KEY"),
+):
+    """Stop a continuous session."""
+    import httpx
+    from cli.renderer import console, GREEN, RED
+
+    headers = {"X-API-Key": api_key} if api_key else {}
+    with httpx.Client(base_url=backend_url, headers=headers, timeout=10) as client:
+        r = client.post(f"/continuous/sessions/{session_id}/stop")
+        if r.status_code == 200:
+            console.print(f"\n  [{GREEN}]Session {session_id[:8]} stopped.[/{GREEN}]\n")
+        else:
+            console.print(f"  [{RED}]Error: {r.text}[/{RED}]")
+            raise typer.Exit(1)
+
+
+@app.command()
+def mcp():
+    """Start the Nimbus MCP server (stdio transport) for use with Claude Code and other MCP clients."""
+    try:
+        from mcp_server.server import run_stdio
+    except ImportError:
+        print(Fore.RED + "mcp package not installed. Run: pip install mcp>=1.0", file=sys.stderr)
+        raise typer.Exit(1)
+    import asyncio as _asyncio
+    _asyncio.run(run_stdio())
 
 
 def main():

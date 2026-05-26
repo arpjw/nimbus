@@ -7,6 +7,7 @@ from models.health import HealthSnapshot  # noqa: F401 — ensure table is regis
 from models.task_metrics import TaskMetrics  # noqa: F401 — ensure table is registered
 from models.token_usage import TokenUsage  # noqa: F401 -- ensure table is registered
 from models.file_index import FileIndexState  # noqa: F401 -- ensure table is registered
+from models.continuous import ContinuousSession  # noqa: F401 -- ensure table is registered
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:////data/nimbus.db")
 

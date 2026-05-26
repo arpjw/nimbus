@@ -55,6 +55,9 @@ class Settings(BaseSettings):
 
     openai_api_key: str = ""
 
+    auto_approve_confidence: int = 80
+    confidence_model: str = "claude-haiku-4-5-20251001"
+
     slack_bot_token: str = ""
     slack_signing_secret: str = ""
     slack_client_id: str = ""

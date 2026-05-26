@@ -24,6 +24,7 @@ from api.routes.marketplace import router as marketplace_router
 from api.routes.health import router as health_router
 from api.routes.analytics import router as analytics_router
 from api.routes.admin import router as admin_router
+from api.routes.continuous import router as continuous_router
 from github_app.webhooks import router as github_router
 from linear_app.webhooks import linear_router
 from services.automation_engine import AutomationEngine
@@ -460,6 +461,9 @@ async def startup():
     AutomationEngine().schedule_all()
     from services.reaper import start_reaper
     start_reaper(interval_seconds=1800)
+    from services.continuous_engine import run_continuous_loop
+    import asyncio as _asyncio
+    _asyncio.create_task(run_continuous_loop())
     if not settings.require_api_key and not settings.nimbus_open_mode:
         logging.warning(
             "API key enforcement is OFF and NIMBUS_OPEN_MODE is unset. "
@@ -493,3 +497,4 @@ app.include_router(marketplace_router)
 app.include_router(health_router)
 app.include_router(analytics_router)
 app.include_router(admin_router)
+app.include_router(continuous_router)

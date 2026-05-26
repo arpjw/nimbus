@@ -15,6 +15,13 @@ except ImportError:
 
 
 @dataclass
+class MCPServerConfig:
+    name: str
+    url: str
+    auth_env: Optional[str] = None
+
+
+@dataclass
 class RepoConfig:
     allowed_agents: list[str] = field(default_factory=list)
     denied_paths: list[str] = field(default_factory=list)
@@ -24,6 +31,7 @@ class RepoConfig:
     planner_model: Optional[str] = None
     implementer_model: Optional[str] = None
     protected_branches: list[str] = field(default_factory=list)
+    mcp_servers: list[MCPServerConfig] = field(default_factory=list)
 
 
 def load_repo_config(workspace: Path) -> RepoConfig:
@@ -36,6 +44,16 @@ def load_repo_config(workspace: Path) -> RepoConfig:
         review = data.get("review", {})
         models = data.get("models", {})
         branches = data.get("branches", {})
+        mcp_raw = data.get("mcp", {}).get("servers", [])
+        mcp_servers = [
+            MCPServerConfig(
+                name=s.get("name", ""),
+                url=s.get("url", ""),
+                auth_env=s.get("auth_env"),
+            )
+            for s in mcp_raw
+            if s.get("url")
+        ]
         return RepoConfig(
             allowed_agents=tasks.get("allowed_agents", []),
             denied_paths=tasks.get("denied_paths", []),
@@ -45,6 +63,7 @@ def load_repo_config(workspace: Path) -> RepoConfig:
             planner_model=models.get("planner"),
             implementer_model=models.get("implementer"),
             protected_branches=branches.get("protected", []),
+            mcp_servers=mcp_servers,
         )
     except Exception as exc:
         _log.warning("Failed to load .nimbus.toml: %s", exc)
