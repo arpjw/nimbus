@@ -1,22 +1,30 @@
+from __future__ import annotations
+
 import asyncio
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from agent.orchestrator import run_task, _approval_events, _approval_results, _rag_service
+from agent.orchestrator import (
+    run_task,
+    _rag_service,
+    _APPROVAL_KEY_PREFIX,
+    _APPROVAL_RESULT_PREFIX,
+)
 from agent.reviewer_external import review_pr as _review_pr
 from agent.test_generator import generate_tests
-from api.ws import manager, get_or_create_queue, pump_queue_to_ws
+from api.ws import manager, stream_task_events_to_ws
 from config import settings
 from database import get_session
 from github_app.github import post_pr_comment
 from models.task import Task, Repo, Phase
 from models.schemas import TaskCreate, TaskResponse
 from services.auth import ApiKey, require_api_key, check_rate_limit
-
 from services.review_rules import ReviewRulesService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -40,6 +48,41 @@ async def review_endpoint(body: ReviewRequest):
     if body.post:
         await post_pr_comment(body.pr_url, review)
     return {"pr_url": body.pr_url, "review": review, "verdict": verdict}
+
+
+async def _enqueue_task(
+    task: Task,
+    repo: Repo,
+    issue_number: int | None = None,
+    repo_full_name: str | None = None,
+    skill: str | None = None,
+    api_key_id: str | None = None,
+) -> None:
+    try:
+        from arq import create_pool
+        from arq.connections import RedisSettings
+
+        redis_settings = RedisSettings.from_dsn(settings.redis_url)
+        pool = await create_pool(redis_settings)
+        await pool.enqueue_job(
+            "run_task_job",
+            task_id=task.id,
+            repo_id=repo.id,
+            issue_number=issue_number,
+            repo_full_name=repo_full_name,
+            skill_name=skill,
+            api_key_id=api_key_id,
+        )
+        await pool.aclose()
+    except Exception:
+        asyncio.create_task(run_task(
+            task,
+            repo,
+            issue_number=issue_number,
+            repo_full_name=repo_full_name,
+            skill_name=skill,
+            api_key_id=api_key_id,
+        ))
 
 
 async def create_task_internal(
@@ -71,9 +114,7 @@ async def create_task_internal(
         api_key.last_used_at = datetime.now(timezone.utc)
         session.add(api_key)
         session.commit()
-    queue = get_or_create_queue(task.id)
-    asyncio.create_task(run_task(task, repo, queue, issue_number=issue_number, repo_full_name=repo_full_name, skill_name=skill, api_key_id=api_key.id))
-    asyncio.create_task(pump_queue_to_ws(task.id))
+    await _enqueue_task(task, repo, issue_number=issue_number, repo_full_name=repo_full_name, skill=skill, api_key_id=api_key.id)
     return task
 
 
@@ -109,9 +150,7 @@ async def create_task(
         session.add(api_key)
         session.commit()
 
-    queue = get_or_create_queue(task.id)
-    asyncio.create_task(run_task(task, repo, queue, issue_number=body.issue_number, repo_full_name=body.repo_full_name, skill_name=body.skill, api_key_id=api_key.id))
-    asyncio.create_task(pump_queue_to_ws(task.id))
+    await _enqueue_task(task, repo, issue_number=body.issue_number, repo_full_name=body.repo_full_name, skill=body.skill, api_key_id=api_key.id)
 
     return task
 
@@ -132,16 +171,22 @@ def get_task(task_id: str, session: Session = Depends(get_session)):
     return task
 
 
+async def _publish_approval(approval_key: str, approved: bool) -> None:
+    from redis_client import get_redis
+    redis_client = await get_redis()
+    waiting_key = f"{_APPROVAL_KEY_PREFIX}{approval_key}"
+    if not await redis_client.exists(waiting_key):
+        raise HTTPException(status_code=409, detail="Task is not awaiting approval")
+    result_key = f"{_APPROVAL_RESULT_PREFIX}{approval_key}"
+    await redis_client.lpush(result_key, json.dumps({"approved": approved}))
+
+
 @router.post("/{task_id}/approve")
 async def approve_task(task_id: str, session: Session = Depends(get_session)):
     task = session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    event = _approval_events.get(task_id)
-    if event is None:
-        raise HTTPException(status_code=409, detail="Task is not awaiting approval")
-    _approval_results[task_id] = True
-    event.set()
+    await _publish_approval(task_id, True)
     return {"status": "approved"}
 
 
@@ -150,11 +195,7 @@ async def reject_task(task_id: str, session: Session = Depends(get_session)):
     task = session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    event = _approval_events.get(task_id)
-    if event is None:
-        raise HTTPException(status_code=409, detail="Task is not awaiting approval")
-    _approval_results[task_id] = False
-    event.set()
+    await _publish_approval(task_id, False)
     return {"status": "rejected"}
 
 
@@ -163,12 +204,7 @@ async def approve_diff(task_id: str, session: Session = Depends(get_session)):
     task = session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    diff_key = task_id + ":diff"
-    event = _approval_events.get(diff_key)
-    if event is None:
-        raise HTTPException(status_code=409, detail="Task is not awaiting diff approval")
-    _approval_results[diff_key] = True
-    event.set()
+    await _publish_approval(task_id + ":diff", True)
     return {"status": "approved"}
 
 
@@ -177,12 +213,7 @@ async def reject_diff(task_id: str, session: Session = Depends(get_session)):
     task = session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    diff_key = task_id + ":diff"
-    event = _approval_events.get(diff_key)
-    if event is None:
-        raise HTTPException(status_code=409, detail="Task is not awaiting diff approval")
-    _approval_results[diff_key] = False
-    event.set()
+    await _publish_approval(task_id + ":diff", False)
     return {"status": "rejected"}
 
 
@@ -190,10 +221,9 @@ async def reject_diff(task_id: str, session: Session = Depends(get_session)):
 async def task_ws(task_id: str, ws: WebSocket):
     await manager.connect(task_id, ws)
     try:
-        while True:
-            await ws.receive_text()
+        await stream_task_events_to_ws(task_id, ws)
     except WebSocketDisconnect:
-        manager.disconnect(task_id, ws)
+        pass
 
 
 class GenerateTestsRequest(BaseModel):

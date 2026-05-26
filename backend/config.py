@@ -30,6 +30,9 @@ class Settings(BaseSettings):
 
     github_webhook_secret: str = ""
 
+    redis_url: str = "redis://localhost:6379/0"
+    bm25_cache_dir: str = "./.bm25"
+
     parallel_threshold: int = 6
     max_parallel_workers: int = 3
 

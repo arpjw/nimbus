@@ -11,7 +11,14 @@ from nimbus_core.vector_store import VectorStore
 
 _embedding_service = EmbeddingService()
 _vector_store = VectorStore()
-_anthropic_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+_anthropic_client: anthropic.AsyncAnthropic | None = None
+
+
+def _get_anthropic() -> anthropic.AsyncAnthropic:
+    global _anthropic_client
+    if _anthropic_client is None:
+        _anthropic_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    return _anthropic_client
 
 _EXTRACT_PROMPT = (
     "Given this completed Nimbus task, extract a concise memory entry (max 150 words) "
@@ -34,7 +41,7 @@ async def write_repo_memory(
         f"Verification passed: {verification_passed}\n"
         f"Error: {error or 'None'}"
     )
-    response = await _anthropic_client.messages.create(
+    response = await _get_anthropic().messages.create(
         model=settings.implementer_model,
         max_tokens=300,
         messages=[{"role": "user", "content": f"{_EXTRACT_PROMPT}\n\n{user_content}"}],

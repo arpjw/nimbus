@@ -1,20 +1,18 @@
-"""
-Orchestrator: drives the full Nimbus workflow across all phases, emitting
-real-time events to a WebSocket queue consumed by the frontend.
-"""
+from __future__ import annotations
 
 import asyncio
-import uuid
+import json
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, AsyncGenerator
+from typing import Optional
 
+import redis.asyncio as aioredis
 from sqlmodel import Session
 
 from agent.planner import generate_plan, Plan
 from agent.implementer import execute_plan
 from agent.parallel_implementer import execute_plan_parallel
-from services.memory import write_repo_memory, read_repo_memory
+from nimbus_core.memory import write_repo_memory, read_repo_memory
 from agent.verifier import verify
 from agent.reviewer import self_review, respond_to_comments
 from config import settings
@@ -22,31 +20,54 @@ from database import engine
 from github_app.github import post_comment
 from models.task import Task, Phase, Repo, RepoStatus
 from models.task_metrics import TaskMetrics
-from services.embedding import EmbeddingService
-from services.rag import RAGService
-from services.vector_store import VectorStore
+from nimbus_core.embedding import EmbeddingService
+from nimbus_core.rag import RAGService
+from nimbus_core.vector_store import VectorStore
 from tools.git_tools import GitManager
 from tools.file_tools import list_files, read_file
-from services.chunker import chunk_file
+from nimbus_core.chunker import chunk_file
 
 _embedding_service = EmbeddingService()
 _vector_store = VectorStore()
 _rag_service = RAGService(_embedding_service, _vector_store)
 _git_manager = GitManager()
 
-PARALLEL_THRESHOLD: int = 6
-
-_approval_events: dict[str, asyncio.Event] = {}
-_approval_results: dict[str, bool] = {}
-
-Emitter = Callable[[Phase, str, dict | None], None]
-
-
-async def _emit_event(queue: asyncio.Queue, task_id: str, phase: Phase, message: str, data: dict | None = None):
-    await queue.put({"task_id": task_id, "phase": phase.value, "message": message, "ts": datetime.utcnow().isoformat(), "data": data or {}})
+_APPROVAL_WAIT_SECONDS = 300
+_APPROVAL_KEY_PREFIX = "nimbus:approval:"
+_APPROVAL_RESULT_PREFIX = "nimbus:approval-result:"
+_TASK_EVENTS_PREFIX = "nimbus:task-events:"
+_TASK_HISTORY_PREFIX = "nimbus:task-history:"
+_EVENT_TTL_SECONDS = 3600
 
 
-def _update_task(task_id: str, **kwargs):
+async def _get_redis() -> aioredis.Redis:
+    from redis_client import get_redis
+    return await get_redis()
+
+
+async def _emit_event(
+    redis_client: aioredis.Redis,
+    task_id: str,
+    phase: Phase,
+    message: str,
+    data: dict | None = None,
+) -> None:
+    event = {
+        "task_id": task_id,
+        "phase": phase.value,
+        "message": message,
+        "ts": datetime.utcnow().isoformat(),
+        "data": data or {},
+    }
+    payload = json.dumps(event)
+    channel = f"{_TASK_EVENTS_PREFIX}{task_id}"
+    history_key = f"{_TASK_HISTORY_PREFIX}{task_id}"
+    await redis_client.publish(channel, payload)
+    await redis_client.rpush(history_key, payload)
+    await redis_client.expire(history_key, _EVENT_TTL_SECONDS)
+
+
+def _update_task(task_id: str, **kwargs: object) -> None:
     with Session(engine) as session:
         task = session.get(Task, task_id)
         if not task:
@@ -56,6 +77,23 @@ def _update_task(task_id: str, **kwargs):
         task.updated_at = datetime.utcnow()
         session.add(task)
         session.commit()
+
+
+async def _wait_for_approval(
+    redis_client: aioredis.Redis,
+    approval_key: str,
+    timeout: float = _APPROVAL_WAIT_SECONDS,
+) -> Optional[bool]:
+    result_key = f"{_APPROVAL_RESULT_PREFIX}{approval_key}"
+    await redis_client.set(f"{_APPROVAL_KEY_PREFIX}{approval_key}", "waiting", ex=int(timeout) + 10)
+    try:
+        result = await redis_client.blpop(result_key, timeout=int(timeout))
+    finally:
+        await redis_client.delete(f"{_APPROVAL_KEY_PREFIX}{approval_key}")
+    if result is None:
+        return None
+    _, data = result
+    return json.loads(data).get("approved", False)
 
 
 async def _index_repository(repo: Repo, workspace: Path) -> None:
@@ -111,14 +149,14 @@ async def _build_file_tree(workspace: Path) -> str:
 async def run_task(
     task: Task,
     repo: Repo,
-    queue: asyncio.Queue,
     issue_number: int | None = None,
     repo_full_name: str | None = None,
     slack_channel: str | None = None,
     skill_name: str | None = None,
     api_key_id: str | None = None,
 ) -> None:
-    emit = lambda phase, msg, data=None: _emit_event(queue, task.id, phase, msg, data)
+    redis_client = await _get_redis()
+    emit = lambda phase, msg, data=None: _emit_event(redis_client, task.id, phase, msg, data)
 
     _slack = None
     _slack_ts: str | None = None
@@ -174,24 +212,18 @@ async def run_task(
         for change in plan.changes:
             await emit(Phase.PLANNING, f"  [{change.action.upper()}] {change.path}: {change.description[:80]}")
 
-        _approval_events[task.id] = asyncio.Event()
         _update_task(task.id, phase=Phase.AWAITING_APPROVAL)
         await emit(
             Phase.AWAITING_APPROVAL,
             f"Plan ready: {len(plan.changes)} change(s) require approval",
             {"changes": [{"path": c.path, "action": c.action, "description": c.description} for c in plan.changes]},
         )
-        try:
-            await asyncio.wait_for(_approval_events[task.id].wait(), timeout=300)
-            approved = _approval_results.pop(task.id, True)
-        except asyncio.TimeoutError:
-            _approval_results.pop(task.id, None)
+
+        approved = await _wait_for_approval(redis_client, task.id)
+        if approved is None:
             _update_task(task.id, phase=Phase.FAILED, error="Approval timeout")
             await emit(Phase.FAILED, "Approval timeout")
             return
-        finally:
-            _approval_events.pop(task.id, None)
-
         if not approved:
             _update_task(task.id, phase=Phase.FAILED, error="Rejected by user")
             await emit(Phase.FAILED, "Rejected by user")
@@ -223,14 +255,14 @@ async def run_task(
 
             if iteration < settings.max_implement_iterations - 1:
                 _update_task(task.id, phase=Phase.FIXING)
-                await emit(Phase.FIXING, f"Errors found — regenerating plan...")
+                await emit(Phase.FIXING, "Errors found -- regenerating plan...")
                 error_context = "\n".join(verification.errors)
                 plan = await generate_plan(
                     f"Original task: {task.description}\n\nFix these errors:\n{error_context}",
                     [repo.id], _rag_service, file_tree
                 )
             else:
-                await emit(Phase.FIXING, "Max iterations reached — proceeding with current state")
+                await emit(Phase.FIXING, "Max iterations reached -- proceeding with current state")
 
         _update_task(task.id, phase=Phase.REVIEWING)
         await emit(Phase.REVIEWING, "Pushing branch and creating PR...")
@@ -241,27 +273,20 @@ async def run_task(
             1 for line in diff_raw.splitlines()
             if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
         )
-        diff_string = diff_raw if len(diff_raw) <= 8000 else diff_raw[:8000] + "\n... (truncated)"
 
         diff_key = task.id + ":diff"
-        _approval_events[diff_key] = asyncio.Event()
         _update_task(task.id, phase=Phase.AWAITING_DIFF_APPROVAL)
         await emit(
             Phase.AWAITING_DIFF_APPROVAL,
             f"Diff ready for review -- {lines_changed} lines changed",
-            {"diff": diff_string, "lines_changed": lines_changed},
+            {"diff": diff_raw, "lines_changed": lines_changed},
         )
-        try:
-            await asyncio.wait_for(_approval_events[diff_key].wait(), timeout=300)
-            diff_approved = _approval_results.pop(diff_key, True)
-        except asyncio.TimeoutError:
-            _approval_results.pop(diff_key, None)
+
+        diff_approved = await _wait_for_approval(redis_client, diff_key)
+        if diff_approved is None:
             _update_task(task.id, phase=Phase.FAILED, error="Diff approval timeout")
             await emit(Phase.FAILED, "Diff approval timeout")
             return
-        finally:
-            _approval_events.pop(diff_key, None)
-
         if not diff_approved:
             _update_task(task.id, phase=Phase.FAILED, error="Diff rejected by user")
             await emit(Phase.FAILED, "Diff rejected by user")
@@ -276,7 +301,7 @@ async def run_task(
         await emit(Phase.REVIEWING, "Performing self-review (Claude Sonnet)...")
         review_result = await self_review(pr_url, _git_manager)
         await _git_manager.post_pr_comment(pr_url, review_result.body)
-        await emit(Phase.REVIEWING, f"Self-review posted — verdict: {review_result.verdict} ({review_result.issues_found} issues)")
+        await emit(Phase.REVIEWING, f"Self-review posted -- verdict: {review_result.verdict} ({review_result.issues_found} issues)")
 
         _update_task(task.id, phase=Phase.CLEANUP)
         await emit(Phase.CLEANUP, "Cleaning up workspace...")
@@ -302,6 +327,7 @@ async def run_task(
                 _ms.commit()
         except Exception:
             pass
+
         if _slack and _slack_ts:
             try:
                 duration = (datetime.utcnow() - _task_start).total_seconds()

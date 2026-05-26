@@ -48,6 +48,10 @@ class Settings:
             "chroma_persist_dir",
             str(Path.home() / ".nimbus" / "chroma"),
         )
+        self.bm25_cache_dir: str = _get(
+            "bm25_cache_dir",
+            str(Path.home() / ".nimbus" / "bm25"),
+        )
         self.rag_top_k: int = _get_int("rag_top_k", 20)
         self.rag_bm25_weight: float = _get_float("rag_bm25_weight", 0.3)
         self.rag_vector_weight: float = _get_float("rag_vector_weight", 0.7)
