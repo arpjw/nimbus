@@ -17,6 +17,7 @@ class ApiKey(SQLModel, table=True):
     owner_email: str = Field(default="")
     tier: str = "free"
     task_count_month: int = 0
+    ide_session_count_month: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_used_at: Optional[datetime] = None
     user_id: Optional[str] = Field(default=None, foreign_key="user.id")
