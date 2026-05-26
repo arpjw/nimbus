@@ -30,8 +30,8 @@ from cli.renderer import (
     render_verify,
 )
 from cli.architecture_induction import induce_architecture, facts_to_prompt, FACTS_KEY
-from services.chunker import chunk_file
-from services.embedding import EmbeddingService
+from nimbus_core.chunker import chunk_file
+from nimbus_core.embedding import EmbeddingService
 
 CHROMA_DIR = Path.home() / ".nimbus" / "chroma"
 SESSIONS_DIR = Path.home() / ".nimbus" / "sessions"
